@@ -13,22 +13,31 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-  ${CMAKE_SOURCE_DIR}/../../../vendor/ptcl/include
+  ${CMAKE_SOURCE_DIR}/../embo_example/include
+  ${CMAKE_SOURCE_DIR}/../ptcl/include
 )
 
 target_link_directories(${PROJECT_NAME} PUBLIC
-  ${CMAKE_SOURCE_DIR}/../../../../build/PTCL
+  ${CMAKE_SOURCE_DIR}/../../../install/embo_example/lib/
 )
 
 target_link_libraries(${PROJECT_NAME}
-  libptclUdpPort.a
-  libptclFilePort.a
-  libptclFilePortUtils.a
-  libptclUtils.a
-  libptclMutex.a
-  libptcl.a
-  libcrc32.a
-  libcobs.a
+  libembo_example.so 
+  libptcl.so 
+  libptclMutex.so 
+  libcobs.so 
+  libcrc32.so 
+  libcobs.so 
+  libptcl.so 
+  libptclLoopbackPort.so 
+  libptclUdpPort.so 
+  libcrc32.so 
+  libptclBindings.so 
+  libptclMutex.so 
+  libptclUtils.so 
+  libembo_example.so 
+  libptclFilePortUtils.so 
+  libptclSi.so
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wno-old-style-cast) # RCLCPP_ERROR_THROTTLE() has built-in old-style casts.

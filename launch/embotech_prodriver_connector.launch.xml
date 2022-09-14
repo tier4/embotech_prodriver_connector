@@ -1,0 +1,16 @@
+<launch>
+  <!-- Connector between autoware and prodriver -->
+  <push-ros-namespace namespace="prodriver_connector"/>
+  <node pkg="embotech_prodriver_connector" exec="embotech_prodriver_connector_exe" name="embotech_prodriver_connector" output="screen">
+    <param from="$(find-pkg-share embotech_prodriver_connector)/param/embotech_prodriver_connector.default.param.yaml"/>
+    <remap from="~/input/kinematic_state" to="/localization/kinematic_state"/>
+    <remap from="~/input/steering_status" to="/vehicle/status/steering_status"/>
+    <remap from="~/input/acceleration" to="/localization/acceleration"/>
+    <remap from="~/input/objects" to="/perception/object_recognition/objects"/>
+    <remap from="~/input/goal" to="/planning/mission_planning/goal"/>
+    <remap from="~/output/trajectory" to="/planning/scenario_planning/trajectory"/>
+    <remap from="~/output/control" to="/control/trajectory_follower/control_cmd_unused"/>
+    <remap from="~/output/turn_indicators_cmd" to="/planning/turn_indicators_cmd"/>
+    <remap from="~/output/hazard_lights_cmd" to="/planning/hazard_lights_cmd"/>
+  </node>
+</launch>

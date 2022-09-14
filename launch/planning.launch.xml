@@ -1,0 +1,24 @@
+<launch>
+  <!-- planning module -->
+
+  <arg name="vehicle_model" description="vehicle model name"/>
+  <arg name="prodriver_path" default="$(dirname)/../../../../../embotech/prodriver-0.10.0-tier4-221107-0800/"/>
+  <arg name="gui" default="false" description="if true, also launch the developer ui of PRODRIVER"/>
+
+  <group scoped="false">
+    <include file="$(find-pkg-share global_parameter_loader)/launch/global_params.launch.py">
+      <arg name="use_sim_time" value="false"/>
+      <arg name="vehicle_model" value="$(var vehicle_model)"/>
+    </include>
+  </group>
+
+  <group>
+    <push-ros-namespace namespace="planning"/>
+    <!-- prodriver connector -->
+    <group>
+      <include file="$(find-pkg-share embotech_prodriver_connector)/launch/embotech_prodriver_connector.launch.xml"/>
+    </group>
+    <!-- prodriver + developer ui -->
+    <executable cmd="bash run_prodriver.sh $(var prodriver_path) $(var gui)" cwd="$(find-pkg-share embotech_prodriver_connector)/launch/" launch-prefix="" output="screen"/>
+  </group>
+</launch>

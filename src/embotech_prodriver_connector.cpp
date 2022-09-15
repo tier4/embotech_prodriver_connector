@@ -77,8 +77,13 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
     "/planning/mission_planning/goal", QoS{1},
     std::bind(&EmbotechProDriverConnector::on_goal, this, _1));
 
+  // TODO(K.Sugahara): get those parameter from yaml file
   // calculate GPSPoint
-  mgrs_projector_.setMGRSCode("54SUE");
+  // odaiba virtual_map
+  // mgrs_projector_.setMGRSCode("54SUE");
+
+  // ryuyo_ci1,2
+  // mgrs_projector_.setMGRSCode("53SQU");
 
   // odaiba
   // prodriver_origin_latlon_.lat = 35.61458614188;
@@ -88,8 +93,19 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   origin_prodriver_latlon_.lat = 35.68386482855;
   origin_prodriver_latlon_.lon = 139.68506426425;
 
+  // ryuyo_ci1
+  // prodriver_origin_latlon_.lat = 34.66441053284202;
+  // prodriver_origin_latlon_.lon = 137.83339405223919;
+
+  // ryuyo_ci2
+  // prodriver_origin_latlon_.lat = 34.66444508923468;
+  // prodriver_origin_latlon_.lon = 137.83333262993906;
+
   origin_prodriver_utm_ = convert_LatLon_to_UTM_coordinate(origin_prodriver_latlon_);
 
+  // setup_address();
+  // init_pots();
+  // init_state();
   setup_PTCL();
 }
 
@@ -100,8 +116,40 @@ void EmbotechProDriverConnector::setup_PTCL()
   PTCL_setLogPrefix("EX");
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
 
-  // Start listening to UDP messages.
-  // PTCL_UdpPort_startReceiving(&udpPortCarStateSender_);
+  // TODO (K.Sugahara): declare parameter from config file
+  // const uint8_t ipLocalhostArray[] = {127U, 0U, 0U, 1U};
+  // const uint32_t ipLocalhost = PTCL_UdpPort_getIpFromArray(ipLocalhostArray);
+  // const PTCL_Id idVehicle = 1U;
+  // const uint16_t portVehicle = 4981U;
+  // const PTCL_Id idPerception = 2U;
+  // const uint16_t portPerception = 4982U;
+  // const PTCL_Id idNavigator = 3U;
+  // const uint16_t portNavigator = 4983U;
+  // const PTCL_Id idMotionPlanner = 4U;
+  // const uint16_t portMotionPlanner = 4984U;
+  // const PTCL_Id idProtect = 5U;
+  // const uint16_t portProtect = 4985U;
+  // const PTCL_Id idDevUi = 9U;
+  // const uint16_t portDevUi = 4989U;
+
+  // const uint32_t numIdAddressPairs = 6U;
+  // const PTCL_UdpIdAddressPair idAddressPairs[] = {
+  //   {idMotionPlanner, ipLocalhost, portMotionPlanner},
+  //   {idProtect, ipLocalhost, portProtect},
+  //   {idNavigator, ipLocalhost, portNavigator},
+  //   {idPerception, ipLocalhost, portPerception},
+  //   {idVehicle, ipLocalhost, portVehicle},
+  //   {idDevUi, ipLocalhost, portDevUi}};
+  // const uint8_t numDestinationsState = 4;
+  // const PTCL_Id destinationsState[] = {idMotionPlanner, idProtect, idNavigator, idDevUi};
+
+  // const uint8_t numDestinationsPerception = 3;
+  // const PTCL_Id destinationsPerception[] = {idMotionPlanner, idProtect, idDevUi};
+  // PTCL_UdpIdAddressPair id_address_map_car_state[ID_ADDRESS_MAP_SIZE] = {
+  //   {AUTOWARE_ID, PTCL_UdpPort_getIpFromArray(autoware_ip), AUTOWARE_PORT},
+  //   {PRODRIVER_ID, PTCL_UdpPort_getIpFromArray(prodriver_ip), PRODRIVER_PORT}};
+
+  // const int32_t ptclTimeout = 100;  // [ms]
 }
 
 void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedPtr msg)
@@ -182,7 +230,7 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
   ptcl_frame.header.oemId = 0;                                             // TODO: think later
   ptcl_frame.header.mapId = 0;                                             // TODO: think later
   ptcl_frame.header.mapCrc = 0;                                            // TODO: think later
-  ptcl_frame.header.vehicleId = 1;                                         // TODO: think later
+  ptcl_frame.header.vehicleId = 1U;                                        // TODO: think later
 
   if (object.objects.size() >= PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX) {
     throw std::runtime_error(
@@ -229,9 +277,18 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
 PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped & goal)
 {
   PTCL_Route ptcl_route;
+  const auto mgrs_pos = goal.pose.position;
+  const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
-  // TODO: write me...
-  (void)goal;
+  ptcl_route.vehicleId = 1U;
+  ptcl_route.numGoalStates = 1U;
+  ptcl_route.goalStates[1U].id += 1U;  // when new goal is shown up, unique id + 1;
+  ptcl_route.goalStates[1U].pose.position.x = ptcl_pos.x;
+  ptcl_route.goalStates[1U].pose.position.y = ptcl_pos.y;
+  // desired steered wheels angle amd velocity at the goal state is basically 0
+  ptcl_route.goalStates[1U].angleSteeredWheels = 0;
+  ptcl_route.goalStates[1U].velLon = 0;
+  ptcl_route.goalStates[1U].duration = 0;  // rest time after reaching goal
 
   return ptcl_route;
 }
@@ -278,6 +335,7 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_Route & route)
 
 PTCL_Position EmbotechProDriverConnector::convert_to_PTCL_Point(const MGRSPoint & mgrs_point)
 {
+  // TODO(K.Sugahara): return zone number
   const auto gps_point = mgrs_projector_.reverse(mgrs_point);
 
   const auto lat = round(gps_point.lat * 1e8) / 1e8;

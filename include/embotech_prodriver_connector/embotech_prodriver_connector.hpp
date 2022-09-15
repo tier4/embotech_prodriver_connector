@@ -94,6 +94,7 @@ private:
   void on_dynamic_object(const PredictedObjects::ConstSharedPtr msg);
   void on_goal(const PoseStamped::ConstSharedPtr msg);
 
+  void setup_address();
   void setup_PTCL();
 
   // conversion: ego

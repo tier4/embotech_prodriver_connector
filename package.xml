@@ -20,6 +20,7 @@
   <depend>vehicle_info_util</depend>
   <depend>tier4_autoware_utils</depend>
   <depend>PTCL</depend>
+  <depend>embo_example</depend>
 
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>

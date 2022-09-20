@@ -13,12 +13,12 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-  ${CMAKE_SOURCE_DIR}/../embo_example/include
-  ${CMAKE_SOURCE_DIR}/../ptcl/include
+  ${CMAKE_SOURCE_DIR}/../../embo_example/include
+  ${CMAKE_SOURCE_DIR}/../../ptcl/include
 )
 
 target_link_directories(${PROJECT_NAME} PUBLIC
-  ${CMAKE_SOURCE_DIR}/../../../install/embo_example/lib/
+  ${CMAKE_SOURCE_DIR}/../../../../install/embo_example/lib/
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -49,4 +49,6 @@ rclcpp_components_register_node(${PROJECT_NAME}
 )
 
 # ament_auto_package(INSTALL_TO_SHARE param launch)
-ament_auto_package(INSTALL_TO_SHARE)
+ament_auto_package(
+  INSTALL_TO_SHARE
+  )

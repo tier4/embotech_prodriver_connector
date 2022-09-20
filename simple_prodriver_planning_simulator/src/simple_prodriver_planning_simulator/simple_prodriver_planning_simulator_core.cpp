@@ -21,12 +21,8 @@
 #include "simple_prodriver_planning_simulator/vehicle_model/sim_model.hpp"
 #include "tier4_autoware_utils/ros/update_param.hpp"
 #include "vehicle_info_util/vehicle_info_util.hpp"
-#include "car_state.h"
-
-#include <lanelet2_extension/projection/mgrs_projector.hpp>
 
 #include <tf2/LinearMath/Quaternion.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <chrono>

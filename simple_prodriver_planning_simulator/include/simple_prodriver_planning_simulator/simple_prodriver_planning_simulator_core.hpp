@@ -38,15 +38,6 @@
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "lanelet2_core/primitives/GPSPoint.h"
-#include "ptcl/ptcl_context.h"
-#include "ptcl/ports/ptcl_port_file.h"
-#include "ptcl/ports/ptcl_port_udp.h"
-#include "ptcl/ptcl.h"
-#include "ptcl/utils/si_ptcl_unit_conversion.h"
-#include "ptcl/utils/ptcl_si_unit_conversion.h"
-#include "embo_mutex.h"
-
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
@@ -62,8 +53,6 @@
 #include <random>
 #include <string>
 #include <vector>
-
-
 
 namespace simulation
 {
@@ -135,9 +124,6 @@ public:
   explicit SimpleProdriverPlanningSimulator(const rclcpp::NodeOptions & options);
 
 private:
-  PTCL_Context context_car_state_;
-  PTCL_UdpPort udp_port_car_state_;
-  PTCL_PortInterface * port_interface_car_state_;
   /* ros system */
   rclcpp::Publisher<VelocityReport>::SharedPtr pub_velocity_;
   rclcpp::Publisher<Odometry>::SharedPtr pub_odom_;
@@ -190,13 +176,6 @@ private:
   Trajectory::ConstSharedPtr current_trajectory_ptr_;
   bool simulate_motion_;  //!< stop vehicle motion simulation if false
   ControlMode current_control_mode_;
-
-  // virtual_map
-  double origin_lat_ = 35.68386482855;
-  double origin_lon_ = 139.68506426425;
-  // odaiba
-  // double origin_lat_ = 35.61458614188;
-  // double origin_lon_ = 139.76947350053;
 
   /* frame_id */
   std::string simulated_frame_id_;  //!< @brief simulated vehicle frame id
@@ -338,11 +317,6 @@ private:
    * @param [in] steer The steering to publish
    */
   void publish_steering(const SteeringReport & steer);
-
-  void send_car_state(
-    const Odometry & odometry, const VelocityReport & velocity, const SteeringReport & steer, PTCL_Context & context_car_state);
-
-  std::pair<double, double> convert_pose_to_UTM_coordinate(const lanelet::GPSPoint & p);
 
   /**
    * @brief publish acceleration

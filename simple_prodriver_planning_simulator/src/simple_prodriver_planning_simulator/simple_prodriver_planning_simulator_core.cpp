@@ -37,28 +37,6 @@
 
 using namespace std::literals::chrono_literals;
 
-#define EXIT_VALUE_OK (0)
-#define EXIT_VALUE_ERR (1)
-
-// PTCL UDP Port configuration data
-#define ID_ADDRESS_MAP_SIZE (2U)
-#define AUTOWARE_ID (10U)
-#define AUTOWARE_PORT (4990U)
-#define PRODRIVER_ID (9U)
-#define PRODRIVER_PORT (4989U)
-
-static const uint8_t autoware_ip[4] = {127U, 0U, 0U, 1U};
-static const uint8_t prodriver_ip[4] = {127U, 0U, 0U, 1U};
-
-const uint8_t num_destinations_state = 1U;
-const PTCL_Id destinations_car_state[] = {PRODRIVER_ID};
-
-/// Timeout of blocking UDP receiver call in milliseconds
-#define UDP_PORT_TIMEOUT_MS (1000)
-
-/// Duration of sleep call in while loop in microseconds
-#define WHILE_LOOP_SLEEP_DURATION_US (100)
-
 namespace
 {
 
@@ -203,30 +181,6 @@ SimpleProdriverPlanningSimulator::SimpleProdriverPlanningSimulator(const rclcpp:
     y_stddev_ = declare_parameter("y_stddev", 0.0001);
   }
 
-  // Initialize PTCL logging
-  //  - Log threshold of console determined by environment variable
-  PTCL_setLogPrefix("EX");
-  PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
-
-  PTCL_UdpIdAddressPair id_address_map_car_state[ID_ADDRESS_MAP_SIZE] = {
-    {AUTOWARE_ID, PTCL_UdpPort_getIpFromArray(autoware_ip), AUTOWARE_PORT},
-    {PRODRIVER_ID, PTCL_UdpPort_getIpFromArray(prodriver_ip), PRODRIVER_PORT}};
-
-  // Setup PTCL context for car state
-  port_interface_car_state_ = PTCL_UdpPort_init(
-    PTCL_UdpPort_getIpFromArray(autoware_ip), AUTOWARE_PORT, id_address_map_car_state,
-    ID_ADDRESS_MAP_SIZE, UDP_PORT_TIMEOUT_MS, AUTOWARE_ID, &context_car_state_,
-    &udp_port_car_state_);
-
-  bool setup_success = (port_interface_car_state_ != NULL);
-  if (setup_success) {
-    RCLCPP_ERROR(
-      this->get_logger(), "initialized sender UDP port with AUTOWARE_ID %u.\n", AUTOWARE_ID);
-  } else {
-    PTCL_UdpPort_destroy(&udp_port_car_state_);
-    printf("Init of sender context failed.\n");
-  }
-
   // control mode
   current_control_mode_.data = ControlMode::AUTO;
   current_manual_gear_cmd_.command = GearCommand::DRIVE;
@@ -300,10 +254,8 @@ rcl_interfaces::msg::SetParametersResult SimpleProdriverPlanningSimulator::on_pa
 
 void SimpleProdriverPlanningSimulator::on_timer()
 {
-  // RCLCPP_ERROR(this->get_logger(), "is_initialized_ in timer function: %d", is_initialized_);  
   if (!is_initialized_) {
-    printf("Not yet init.\n");
-    // RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000, "waiting initialization...");
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000, "waiting initialization...");
     return;
   }
 
@@ -347,42 +299,6 @@ void SimpleProdriverPlanningSimulator::on_timer()
   publish_velocity(current_velocity_);
   publish_steering(current_steer_);
   publish_acceleration();
-  // send car state to PRODRIVER
-  // send_car_state(current_odometry_, current_velocity_, current_steer_, context_car_state);
-
-  const float64_t currentTime = get_clock()->now().seconds();
-
-  // Fill PTCL_CarState example data.
-  static PTCL_CarState car_state;
-  memset(&car_state, 0, sizeof(PTCL_CarState));
-  car_state.header.measurementTime = currentTime;
-  car_state.header.timeReference = currentTime;
-  car_state.header.vehicleId = 1U;
-  car_state.pose.position.x = PTCL_toPTCLCoordinate(100.0);
-  car_state.pose.position.y = PTCL_toPTCLCoordinate(100.0);
-  car_state.pose.heading = PTCL_toPTCLAngleWrapped(3.0);
-  car_state.forceTractionTotal = PTCL_toPTCLForce(3.0);
-  car_state.angleSteeredWheels = PTCL_toPTCLAngleWrapped(3.0);
-  car_state.velLon = PTCL_toPTCLSpeed(30.0);
-  car_state.accelLon = PTCL_toPTCLAccel(3.0);
-  car_state.gear = PTCL_GEAR_SELECTOR_D;
-  car_state.controllerMode.latControlActive = true;
-  car_state.controllerMode.lonControlActive = true;
-
-  // Send PTCL car_state frame.
-  for (uint8_t dstIdx = 0U; dstIdx < num_destinations_state; ++dstIdx) {
-    bool sent_state = PTCL_CarState_send(
-      &context_car_state_, &car_state, destinations_car_state[dstIdx]);
-    if (!sent_state) {
-      printf(
-        "Failed to send car_stateFrame message to PTCL ID %u.\n",
-        destinations_car_state[dstIdx]);
-    } else {
-      printf(
-        "car_stateFrame message sent to PTCL ID %u.\n",
-        destinations_car_state[dstIdx]);
-    }
-  }
 
   publish_control_mode_report();
   publish_gear_report();
@@ -536,7 +452,6 @@ void SimpleProdriverPlanningSimulator::set_initial_state(const Pose & pose, cons
   vehicle_model_ptr_->setState(state);
 
   is_initialized_ = true;
-  // RCLCPP_ERROR(this->get_logger(), "is_initialized_ updated: %d", is_initialized_);  
 }
 
 double SimpleProdriverPlanningSimulator::get_z_pose_from_trajectory(const double x, const double y)
@@ -625,212 +540,6 @@ void SimpleProdriverPlanningSimulator::publish_acceleration()
   msg.accel.covariance.at(6 * 5 + 5) = COV;  // angular z
   pub_acc_->publish(msg);
 }
-
-void SimpleProdriverPlanningSimulator::send_car_state(
-  const Odometry & odometry, const VelocityReport & velocity, const SteeringReport & steer,
-  PTCL_Context & context_car_state)
-{
-  // calculate GPSPoint
-  lanelet::projection::MGRSProjector projector;
-  lanelet::BasicPoint3d mgrs_point;
-  mgrs_point.x() = odometry.pose.pose.position.x;
-  mgrs_point.y() = odometry.pose.pose.position.y;
-  mgrs_point.z() = odometry.pose.pose.position.z;
-  projector.setMGRSCode("54SUE");
-  lanelet::GPSPoint gps_point = projector.reverse(mgrs_point);
-  double car_lat = round(gps_point.lat * 1e8) / 1e8;
-  double car_lon = round(gps_point.lon * 1e8) / 1e8;
-  // double car_lat = gps_point.lat;
-  // double car_lon = gps_point.lon;
-  // RCLCPP_ERROR(this->get_logger(),"pose_mgrs_x %lf.\n", mgrs_point.x());
-  // RCLCPP_ERROR(this->get_logger(), "pose_lat %lf.\n", car_lat);
-  // RCLCPP_ERROR(this->get_logger(), "pose_lon %lf.\n", car_lon);
-  // RCLCPP_ERROR(this->get_logger(),"pose_mgrs_looped_x %lf.\n", looped_mgrs_point.x());
-
-  lanelet::GPSPoint original_position_UTM{origin_lat_, origin_lon_};
-  lanelet::GPSPoint vehicle_position_UTM{car_lat, car_lon};
-
-  const auto [target_UTM_x, target_UTM_y] = convert_pose_to_UTM_coordinate(vehicle_position_UTM);
-  const auto [origin_UTM_x, origin_UTM_y] = convert_pose_to_UTM_coordinate(original_position_UTM);
-
-  // debug print for latlon -> UTM conversion
-  // RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "latlon (%.12f, %.12f) -> UTM (%.12f,
-  // %.12f)", car_lat, car_lon, target_UTM_x, target_UTM_y);
-
-  const PTCL_Coordinate position_x_PTCL =
-    PTCL_toPTCLCoordinate(target_UTM_x - origin_UTM_x);  // converted to int
-  const PTCL_Coordinate position_y_PTCL =
-    PTCL_toPTCLCoordinate(target_UTM_y - origin_UTM_y);  // converted to int
-
-  // TODO: How to calculate yaw? Should we use it directly, or calculate as below?
-  // const PTCL_Coordinate position_y_PTCL = std::atan2(position_y_PTCL, position_x_PTCL);
-
-  // Compute some "measurement" using model.
-  float64_t forceTractionTotal = vehicle_model_ptr_->getAx() * PTCL_toMass(2000);
-  // float64_t wheelbase = PTCL_toDistance(2.7);
-  // float64_t angleSteeredWheels = atan(wheelbase * 0.0);
-
-  static PTCL_CarState car_state;
-  memset(&car_state, 0, sizeof(PTCL_CarState));
-  const float64_t current_time = get_clock()->now().seconds();
-  // RCLCPP_ERROR(this->get_logger(),"current_time %lf.\n", current_time);
-  car_state.header.measurementTime = PTCL_toPTCLTime(current_time);
-  car_state.header.timeReference = PTCL_toPTCLTime(current_time);
-  car_state.header.vehicleId = 1;
-  car_state.pose.position.x = position_x_PTCL;
-  car_state.pose.position.y = position_y_PTCL;
-  car_state.pose.heading = PTCL_toPTCLAngleWrapped(tf2::getYaw(odometry.pose.pose.orientation));
-  car_state.forceTractionTotal = PTCL_toPTCLForce(forceTractionTotal);
-  car_state.angleSteeredWheels = PTCL_toPTCLAngleWrapped(steer.steering_tire_angle);
-  car_state.velLon = PTCL_toPTCLSpeed(velocity.longitudinal_velocity);
-  car_state.velLat = PTCL_toPTCLSpeed(velocity.lateral_velocity);
-  car_state.accelLon = PTCL_toPTCLAccel(vehicle_model_ptr_->getAx());
-  car_state.angleRateYaw = PTCL_toPTCLAngleRate(odometry.twist.twist.angular.z);
-
-  car_state.gear = PTCL_GEAR_SELECTOR_D;
-  car_state.controllerMode.latControlActive = true;
-  car_state.controllerMode.lonControlActive = true;
-
-  // Send PTCL car_state.
-  for (uint8_t dstIdx = 0U; dstIdx < num_destinations_state; ++dstIdx) {
-    bool sent_state = PTCL_CarState_send(
-      &context_car_state, &car_state, destinations_car_state[dstIdx]);
-    if (!sent_state) {
-      printf(
-        "Failed to send car_stateFrame message to PTCL ID %u.\n",
-        destinations_car_state[dstIdx]);
-    } else {
-      printf(
-        "car_stateFrame message sent to PTCL ID %u.\n",
-        destinations_car_state[dstIdx]);
-    }
-  }
-
-  return;
-}
-
-std::pair<double, double> SimpleProdriverPlanningSimulator::convert_pose_to_UTM_coordinate(
-  const lanelet::GPSPoint & p_target)
-{
-  // TODO(K.Sugahara): this is from the Turbo87/UTM repository. Take right way to manage this code.
-  // https://github.com/Turbo87/utm/blob/master/utm/conversion.py#L190-L286
-
-  // parameters
-  constexpr auto K0 = 0.9996;
-
-  constexpr auto E = 0.00669438;
-  constexpr auto E2 = E * E;
-  constexpr auto E3 = E2 * E;
-  constexpr auto E_P2 = E / (1 - E);
-
-  constexpr auto M1 = (1 - E / 4 - 3 * E2 / 64 - 5 * E3 / 256);
-  constexpr auto M2 = (3 * E / 8 + 3 * E2 / 32 + 45 * E3 / 1024);
-  constexpr auto M3 = (15 * E2 / 256 + 45 * E3 / 1024);
-  constexpr auto M4 = (35 * E3 / 3072);
-
-  constexpr auto R = 6378137;
-
-  constexpr double LATLON_TO_RAD = M_PI / 180.0;
-
-  const auto zone_number_to_central_longitude = [](const auto zone_number) {
-    return (zone_number - 1) * 6 - 180 + 3;
-  };
-
-  const auto mod_angle = [](const auto value) { return std::fmod(value + M_PI, 2 * M_PI) - M_PI; };
-
-  const auto latlon_to_zone_number = [](const auto latitude, const auto longitude) {
-    if ((56 <= latitude && latitude < 64) && (3 <= longitude && longitude < 12)) return 32;
-    if ((72 <= latitude && latitude <= 84) && (longitude >= 0)) {
-      if (longitude < 9) {
-        return 31;
-      } else if (longitude < 21) {
-        return 33;
-      } else if (longitude < 33) {
-        return 35;
-      } else if (longitude < 42) {
-        return 37;
-      }
-    }
-    return static_cast<int>((longitude + 180) / 6) + 1;
-  };
-
-  const auto lat_rad = p_target.lat * LATLON_TO_RAD;
-  const auto lat_sin = std::sin(lat_rad);
-  const auto lat_cos = std::cos(lat_rad);
-
-  const auto lat_tan = lat_sin / lat_cos;
-  const auto lat_tan2 = lat_tan * lat_tan;
-  const auto lat_tan4 = lat_tan2 * lat_tan2;
-
-  const auto zone_number = latlon_to_zone_number(p_target.lat, p_target.lon);
-
-  if (zone_number != 54) {
-    throw std::runtime_error("TEMP: zone_number must be 54 in this test");
-  }
-
-  // const auto zone_letter = 'S'; // unused
-
-  const auto lon_rad = p_target.lon * LATLON_TO_RAD;
-  const auto central_lon = zone_number_to_central_longitude(zone_number);
-
-  const auto central_lon_rad = central_lon * LATLON_TO_RAD;
-
-  const auto n = R / std::sqrt(1 - E * lat_sin * lat_sin);
-  const auto c = E_P2 * lat_cos * lat_cos;
-
-  const auto a = lat_cos * mod_angle(lon_rad - central_lon_rad);
-  const auto a2 = a * a;
-  const auto a3 = a2 * a;
-  const auto a4 = a3 * a;
-  const auto a5 = a4 * a;
-  const auto a6 = a5 * a;
-
-  const auto m = R * (M1 * lat_rad - M2 * std::sin(2 * lat_rad) + M3 * std::sin(4 * lat_rad) -
-                      M4 * std::sin(6 * lat_rad));
-
-  const auto easting = K0 * n *
-                         (a + a3 / 6 * (1 - lat_tan2 + c) +
-                          a5 / 120 * (5 - 18 * lat_tan2 + lat_tan4 + 72 * c - 58 * E_P2)) +
-                       500000;
-
-  auto northing = K0 * (m + n * lat_tan *
-                              (a2 / 2 + a4 / 24 * (5 - lat_tan2 + 9 * c + 4 * c * c) +
-                               a6 / 720 * (61 - 58 * lat_tan2 + lat_tan4 + 600 * c - 330 * E_P2)));
-
-  if (p_target.lat < 0) {
-    northing += 10000000;
-  }
-
-  return {easting, northing};
-}
-
-// bool start_car_state_loop(const uint32_t interval, CarState *car_state){
-//     bool success = false;
-//     if (car_state != NULL)
-//     {
-//         car_state->interval = interval;
-//         success = Embo_PeriodicTask_start(&(car_state->periodicTask), interval, 0U);
-//         if (!success)
-//         {
-//             printf("Failed to start car_state loop.\n");
-//         }
-//     }
-//     return success;
-// }
-
-// bool Embo_PeriodicTask_start(Embo_PeriodicTask *periodicTask,
-//                              const Embo_Duration period,
-//                              const Embo_Duration initialDelay)
-// {
-//     bool result = false;
-
-//     if (NULL != periodicTask)
-//     {
-//         result = Embo_Time_startPeriodicTimer(&(periodicTask->timer), period, initialDelay);
-//     }
-
-//     return result;
-// }
 
 void SimpleProdriverPlanningSimulator::publish_control_mode_report()
 {

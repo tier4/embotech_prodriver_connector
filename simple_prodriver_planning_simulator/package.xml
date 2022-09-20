@@ -17,19 +17,18 @@
   <depend>autoware_auto_tf2</depend>
   <depend>autoware_auto_vehicle_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>nav_msgs</depend>
-  <depend>vehicle_info_util</depend>
-  <depend>tier4_autoware_utils</depend>
-
   <depend>motion_common</depend>
+  <depend>nav_msgs</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>tf2</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tier4_api_utils</depend>
+  <depend>tier4_autoware_utils</depend>
   <depend>tier4_external_api_msgs</depend>
   <depend>tier4_vehicle_msgs</depend>
+  <depend>vehicle_info_util</depend>
   <depend>lanelet2_extension</depend>
   <depend>lanelet2_core</depend>
 

@@ -113,11 +113,11 @@
   </group>
 
   <!-- Connector between autoware and prodriver -->
-  <group if="$(var launch_prodriver_connector)">
+  <!-- <group if="$(var launch_prodriver_connector)">
     <arg name="simulator_model" default="$(var vehicle_model_pkg)/config/simulator_model.param.yaml" description="path to the file of simulator model"/>
     <include file="$(find-pkg-share simple_planning_simulator)/launch/simple_planning_simulator.launch.py">
       <arg name="initial_engage_state" value="$(var initial_engage_state)"/>
     </include>
-  </group>
+  </group> -->
 
 </launch>

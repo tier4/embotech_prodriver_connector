@@ -17,6 +17,7 @@
 
 // ROS
 #include "rclcpp/rclcpp.hpp"
+
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -25,6 +26,7 @@
 
 // Autoware
 #include "lanelet2_extension/projection/mgrs_projector.hpp"
+
 #include "autoware_auto_perception_msgs/msg/predicted_objects.hpp"
 #include "autoware_auto_planning_msgs/msg/trajectory.hpp"
 #include "autoware_auto_vehicle_msgs/msg/steering_report.hpp"
@@ -32,9 +34,9 @@
 
 // Pro-DRIVER
 #include "lanelet2_core/primitives/GPSPoint.h"
+#include "ptcl/messages/ptcl_perception_frame.h"
 #include "ptcl/ports/ptcl_port_udp.h"
 #include "ptcl/ptcl.h"
-#include "ptcl/messages/ptcl_perception_frame.h"
 #include "ptcl/utils/si_ptcl_unit_conversion.h"
 
 #include <memory>
@@ -44,16 +46,16 @@
 namespace embotech_prodriver_connector
 {
 
-using autoware_auto_vehicle_msgs::msg::SteeringReport;
-using autoware_auto_perception_msgs::msg::PredictedObject;
-using autoware_auto_perception_msgs::msg::PredictedObjects;
-using autoware_auto_perception_msgs::msg::PredictedObjectKinematics;
 using autoware_auto_perception_msgs::msg::ObjectClassification;
+using autoware_auto_perception_msgs::msg::PredictedObject;
+using autoware_auto_perception_msgs::msg::PredictedObjectKinematics;
+using autoware_auto_perception_msgs::msg::PredictedObjects;
 using autoware_auto_perception_msgs::msg::PredictedPath;
 using autoware_auto_perception_msgs::msg::Shape;
+using autoware_auto_vehicle_msgs::msg::SteeringReport;
 
-using geometry_msgs::msg::Pose;
 using geometry_msgs::msg::AccelWithCovarianceStamped;
+using geometry_msgs::msg::Pose;
 using geometry_msgs::msg::PoseStamped;
 using nav_msgs::msg::Odometry;
 
@@ -75,11 +77,18 @@ private:
   rclcpp::Subscription<PredictedObjects>::SharedPtr sub_dynamic_object_;
   rclcpp::Subscription<PoseStamped>::SharedPtr sub_goal_;
 
-  //
-  lanelet::projection::MGRSProjector mgrs_projector_;
+  // port setup
+  PTCL_Context context_car_state_;
+  PTCL_UdpPort udp_port_car_state_;
+  PTCL_PortInterface * port_interface_car_state_;
 
+  // coordinates conversion
+  lanelet::projection::MGRSProjector mgrs_projector_;
   lanelet::GPSPoint origin_prodriver_latlon_;
   UTMPoint origin_prodriver_utm_;
+
+  std::string mgrs_code_ = "54SUE";  // mgrs_code for odaiba and virtual_map
+  // std::string mgrs_code_ = "53SQU" // mgrs_code for ryuyo_ci1,2
 
   Odometry::ConstSharedPtr current_kinematics_;
   SteeringReport::ConstSharedPtr current_steer_;

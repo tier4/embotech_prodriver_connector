@@ -42,6 +42,9 @@ using namespace std::literals::chrono_literals;
 static const uint8_t autowareIp[4] = {127U, 0U, 0U, 1U};
 static const uint8_t prodriverIp[4] = {127U, 0U, 0U, 1U};
 
+const uint8_t num_destinations_state = 1U;
+const PTCL_Id destinations_car_state[] = {PRODRIVER_ID};
+
 /// Timeout of blocking UDP receiver call in milliseconds
 #define UDP_PORT_TIMEOUT_MS (1000)
 
@@ -77,14 +80,8 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
     "/planning/mission_planning/goal", QoS{1},
     std::bind(&EmbotechProDriverConnector::on_goal, this, _1));
 
-  // TODO(K.Sugahara): get those parameter from yaml file
-  // calculate GPSPoint
-  // odaiba virtual_map
-  // mgrs_projector_.setMGRSCode("54SUE");
 
-  // ryuyo_ci1,2
-  // mgrs_projector_.setMGRSCode("53SQU");
-
+  //origin of lat/lon coordinates in PTCL are map
   // odaiba
   // prodriver_origin_latlon_.lat = 35.61458614188;
   // prodriver_origin_latlon_.lon = 139.76947350053;
@@ -101,6 +98,8 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   // prodriver_origin_latlon_.lat = 34.66444508923468;
   // prodriver_origin_latlon_.lon = 137.83333262993906;
 
+  // calculate GPSPoint
+  mgrs_projector_.setMGRSCode(mgrs_code_);
   origin_prodriver_utm_ = convert_LatLon_to_UTM_coordinate(origin_prodriver_latlon_);
 
   // setup_address();
@@ -116,40 +115,24 @@ void EmbotechProDriverConnector::setup_PTCL()
   PTCL_setLogPrefix("EX");
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
 
-  // TODO (K.Sugahara): declare parameter from config file
-  // const uint8_t ipLocalhostArray[] = {127U, 0U, 0U, 1U};
-  // const uint32_t ipLocalhost = PTCL_UdpPort_getIpFromArray(ipLocalhostArray);
-  // const PTCL_Id idVehicle = 1U;
-  // const uint16_t portVehicle = 4981U;
-  // const PTCL_Id idPerception = 2U;
-  // const uint16_t portPerception = 4982U;
-  // const PTCL_Id idNavigator = 3U;
-  // const uint16_t portNavigator = 4983U;
-  // const PTCL_Id idMotionPlanner = 4U;
-  // const uint16_t portMotionPlanner = 4984U;
-  // const PTCL_Id idProtect = 5U;
-  // const uint16_t portProtect = 4985U;
-  // const PTCL_Id idDevUi = 9U;
-  // const uint16_t portDevUi = 4989U;
+  PTCL_UdpIdAddressPair id_address_map_car_state[ID_ADDRESS_MAP_SIZE] = {
+    {AUTOWARE_ID, PTCL_UdpPort_getIpFromArray(autowareIp), AUTOWARE_PORT},
+    {PRODRIVER_ID, PTCL_UdpPort_getIpFromArray(prodriverIp), PRODRIVER_PORT}};
 
-  // const uint32_t numIdAddressPairs = 6U;
-  // const PTCL_UdpIdAddressPair idAddressPairs[] = {
-  //   {idMotionPlanner, ipLocalhost, portMotionPlanner},
-  //   {idProtect, ipLocalhost, portProtect},
-  //   {idNavigator, ipLocalhost, portNavigator},
-  //   {idPerception, ipLocalhost, portPerception},
-  //   {idVehicle, ipLocalhost, portVehicle},
-  //   {idDevUi, ipLocalhost, portDevUi}};
-  // const uint8_t numDestinationsState = 4;
-  // const PTCL_Id destinationsState[] = {idMotionPlanner, idProtect, idNavigator, idDevUi};
+  // Setup PTCL context for car state
+  port_interface_car_state_ = PTCL_UdpPort_init(
+    PTCL_UdpPort_getIpFromArray(autowareIp), AUTOWARE_PORT, id_address_map_car_state,
+    ID_ADDRESS_MAP_SIZE, UDP_PORT_TIMEOUT_MS, AUTOWARE_ID, &context_car_state_,
+    &udp_port_car_state_);
 
-  // const uint8_t numDestinationsPerception = 3;
-  // const PTCL_Id destinationsPerception[] = {idMotionPlanner, idProtect, idDevUi};
-  // PTCL_UdpIdAddressPair id_address_map_car_state[ID_ADDRESS_MAP_SIZE] = {
-  //   {AUTOWARE_ID, PTCL_UdpPort_getIpFromArray(autoware_ip), AUTOWARE_PORT},
-  //   {PRODRIVER_ID, PTCL_UdpPort_getIpFromArray(prodriver_ip), PRODRIVER_PORT}};
-
-  // const int32_t ptclTimeout = 100;  // [ms]
+  bool setup_success = (port_interface_car_state_ != NULL);
+  if (setup_success) {
+    RCLCPP_ERROR(
+      this->get_logger(), "initialized sender UDP port with AUTOWARE_ID %u.\n", AUTOWARE_ID);
+  } else {
+    PTCL_UdpPort_destroy(&udp_port_car_state_);
+    printf("Init of sender context failed.\n");
+  }
 }
 
 void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedPtr msg)
@@ -295,30 +278,20 @@ PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped & goal)
 
 void EmbotechProDriverConnector::send_to_PTCL(const PTCL_CarState & car_state)
 {
-  // RCLCPP_ERROR(this->get_logger(), "convert_to_PTCL start");
-  // [[maybe_unused]] int32_t exitValue = EXIT_VALUE_ERR;
-
-  PTCL_UdpIdAddressPair idAddressMapCarState[ID_ADDRESS_MAP_SIZE] = {
-    {AUTOWARE_ID, PTCL_UdpPort_getIpFromArray(autowareIp), AUTOWARE_PORT},
-    {PRODRIVER_ID, PTCL_UdpPort_getIpFromArray(prodriverIp), PRODRIVER_PORT}};
-
-  // Setup UDP port autoware sender
-  PTCL_UdpPort udpPortCarStateSender;
-  PTCL_Context contextCarStateSender;
-  [[maybe_unused]] PTCL_PortInterface * portInterfaceSender = PTCL_UdpPort_init(
-    PTCL_UdpPort_getIpFromArray(autowareIp), AUTOWARE_PORT, idAddressMapCarState,
-    ID_ADDRESS_MAP_SIZE, UDP_PORT_TIMEOUT_MS, AUTOWARE_ID, &contextCarStateSender,
-    &udpPortCarStateSender);
-
-  bool setupSuccess = (portInterfaceSender != NULL);
-  RCLCPP_ERROR_EXPRESSION(get_logger(), setupSuccess, "Succeeded to initialize vehicle UDP port");
-  RCLCPP_ERROR_EXPRESSION(get_logger(), !setupSuccess, "Failed to initialize vehicle UDP port");
-
-  const PTCL_Id destinationId = PRODRIVER_ID;
-  [[maybe_unused]] const bool sendCarStateSuccess =  //
-    PTCL_CarState_send(&contextCarStateSender, &car_state, destinationId);
-
-  PTCL_UdpPort_destroy(&udpPortCarStateSender);
+  // Send PTCL car_state.
+  for (uint8_t dstIdx = 0U; dstIdx < num_destinations_state; ++dstIdx) {
+    bool sent_state = PTCL_CarState_send(
+      &context_car_state_, &car_state, destinations_car_state[dstIdx]);
+    if (!sent_state) {
+      printf(
+        "Failed to send car_stateFrame message to PTCL ID %u.\n",
+        destinations_car_state[dstIdx]);
+    } else {
+      printf(
+        "car_stateFrame message sent to PTCL ID %u.\n",
+        destinations_car_state[dstIdx]);
+    }
+  }
 }
 
 void EmbotechProDriverConnector::send_to_PTCL(const PTCL_PerceptionFrame & perception_frame)

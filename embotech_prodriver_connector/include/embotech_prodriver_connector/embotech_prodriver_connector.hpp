@@ -80,7 +80,11 @@ private:
   // port setup
   PTCL_Context context_car_state_;
   PTCL_UdpPort udp_port_car_state_;
-  PTCL_PortInterface * port_interface_car_state_;
+  PTCL_Context context_perception_frame_;
+  PTCL_UdpPort udp_port_perception_frame_;
+  PTCL_Context context_route_;
+  PTCL_UdpPort udp_port_route_;
+
 
   // coordinates conversion
   lanelet::projection::MGRSProjector mgrs_projector_;
@@ -103,7 +107,13 @@ private:
   void on_dynamic_object(const PredictedObjects::ConstSharedPtr msg);
   void on_goal(const PoseStamped::ConstSharedPtr msg);
 
+  // setup port
   void setup_address();
+  void setup_port(
+    const unsigned int & id_address_map_size, const unsigned int & source_id,
+    const unsigned int & target_id, const uint8_t local_host_ip_array[4],
+    const uint16_t & source_port, const uint16_t & target_port, PTCL_Context & context,
+    PTCL_UdpPort & udp_port);
   void setup_PTCL();
 
   // conversion: ego

@@ -32,7 +32,7 @@
     <let name="launch_web_controller" value="false" if="$(var scenario_simulation)"/>
     <let name="launch_web_controller" value="true" unless="$(var scenario_simulation)"/>
 
-    <include file="$(find-pkg-share autoware_launch)/launch/autoware.launch.xml">
+    <include file="$(find-pkg-share prodriver_launch)/launch/prodriver_autoware.launch.xml">
       <!-- Common -->
       <arg name="map_path" value="$(var map_path)"/>
       <arg name="vehicle_model" value="$(var vehicle_model)"/>

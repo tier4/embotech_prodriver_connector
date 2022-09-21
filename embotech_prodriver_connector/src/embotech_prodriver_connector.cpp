@@ -117,12 +117,12 @@ void EmbotechProDriverConnector::setup_PTCL()
   setup_port(
     num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, context_car_state_,
     udp_port_car_state_);
+  setup_port(
+    num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, context_perception_frame_,
+    udp_port_perception_frame_);
   // setup_port(
-  //   ID_ADDRESS_MAP_SIZE, autoware_id, prodriver_id, ipLocalhostArray, autoware_port,
-  //   prodriver_port, context_perception_frame_, udp_port_perception_frame_);
-  // setup_port(
-  //   ID_ADDRESS_MAP_SIZE, autoware_id, prodriver_id, ipLocalhostArray, autoware_port,
-  //   prodriver_port, context_route_, udp_port_route_);
+  //   num_ip_address_pairs, autoware_id, ip_local_host, autoware_port,
+  //   context_route_, udp_port_route_);
 }
 
 void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedPtr msg)
@@ -356,9 +356,7 @@ void EmbotechProDriverConnector::setup_port(
 
   bool setup_success = (port_interface != NULL);
   if (setup_success) {
-    RCLCPP_ERROR(
-      this->get_logger(), "initialized sender UDP port with source_id %u\n",
-      source_id);
+    RCLCPP_ERROR(this->get_logger(), "initialized sender UDP port with source_id %u\n", source_id);
   } else {
     PTCL_UdpPort_destroy(&udp_port);
     RCLCPP_ERROR(this->get_logger(), "Init of context failed.\n");

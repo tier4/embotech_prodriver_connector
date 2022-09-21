@@ -78,12 +78,9 @@ private:
   rclcpp::Subscription<PoseStamped>::SharedPtr sub_goal_;
 
   // port setup
-  PTCL_Context context_car_state_;
-  PTCL_UdpPort udp_port_car_state_;
-  PTCL_Context context_perception_frame_;
-  PTCL_UdpPort udp_port_perception_frame_;
-  PTCL_Context context_route_;
-  PTCL_UdpPort udp_port_route_;
+  PTCL_Context ptcl_context_;
+  PTCL_UdpPort ptcl_udp_port_;
+
   // coordinates conversion
   lanelet::projection::MGRSProjector mgrs_projector_;
   lanelet::GPSPoint origin_prodriver_latlon_;

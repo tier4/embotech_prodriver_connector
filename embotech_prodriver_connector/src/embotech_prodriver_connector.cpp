@@ -115,14 +115,8 @@ void EmbotechProDriverConnector::setup_PTCL()
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
 
   setup_port(
-    num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, context_car_state_,
-    udp_port_car_state_);
-  setup_port(
-    num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, context_perception_frame_,
-    udp_port_perception_frame_);
-  // setup_port(
-  //   num_ip_address_pairs, autoware_id, ip_local_host, autoware_port,
-  //   context_route_, udp_port_route_);
+    num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, ptcl_context_,
+    ptcl_udp_port_);
 }
 
 void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedPtr msg)
@@ -271,11 +265,14 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_CarState & car_state)
   // Send PTCL car_state.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_state; ++dstIdx) {
     bool sent_state =
-      PTCL_CarState_send(&context_car_state_, &car_state, destinations_car_state[dstIdx]);
+      PTCL_CarState_send(&ptcl_context_, &car_state, destinations_car_state[dstIdx]);
     if (!sent_state) {
-      printf("Failed to send car_state message to PTCL ID %u.\n", destinations_car_state[dstIdx]);
+      RCLCPP_ERROR(
+        get_logger(), "Failed to send car_state message to PTCL ID %u.",
+        destinations_car_state[dstIdx]);
     } else {
-      printf("car_state message sent to PTCL ID %u.\n", destinations_car_state[dstIdx]);
+      RCLCPP_INFO(
+        get_logger(), "car_state message sent to PTCL ID %u.", destinations_car_state[dstIdx]);
     }
   }
 }
@@ -285,14 +282,15 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_PerceptionFrame & perce
   // Send PTCL perception_frame.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_perception_frame; ++dstIdx) {
     bool sent_perception_frame = PTCL_PerceptionFrame_send(
-      &context_perception_frame_, &perception_frame, destinations_perception_frame[dstIdx]);
+      &ptcl_context_, &perception_frame, destinations_perception_frame[dstIdx]);
     if (!sent_perception_frame) {
-      printf(
-        "Failed to send perception_frame message to PTCL ID %u.\n",
+      RCLCPP_ERROR(
+        get_logger(), "Failed to send perception_frame message to PTCL ID %u.",
         destinations_perception_frame[dstIdx]);
     } else {
-      printf(
-        "perception_frame message sent to PTCL ID %u.\n", destinations_perception_frame[dstIdx]);
+      RCLCPP_INFO(
+        get_logger(), "perception_frame message sent to PTCL ID %u.",
+        destinations_perception_frame[dstIdx]);
     }
   }
 }
@@ -301,11 +299,12 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_Route & route)
 {
   // Send PTCL car_state.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_route; ++dstIdx) {
-    bool sent_route = PTCL_Route_send(&context_route_, &route, destinations_route[dstIdx]);
+    bool sent_route = PTCL_Route_send(&ptcl_context_, &route, destinations_route[dstIdx]);
     if (!sent_route) {
-      printf("Failed to send route message to PTCL ID %u.\n", destinations_route[dstIdx]);
+      RCLCPP_ERROR(
+        get_logger(), "Failed to send route message to PTCL ID %u.", destinations_route[dstIdx]);
     } else {
-      printf("route message sent to PTCL ID %u.\n", destinations_route[dstIdx]);
+      RCLCPP_INFO(get_logger(), "route message sent to PTCL ID %u.", destinations_route[dstIdx]);
     }
   }
 }
@@ -356,7 +355,7 @@ void EmbotechProDriverConnector::setup_port(
 
   bool setup_success = (port_interface != NULL);
   if (setup_success) {
-    RCLCPP_ERROR(this->get_logger(), "initialized sender UDP port with source_id %u\n", source_id);
+    RCLCPP_INFO(this->get_logger(), "initialized sender UDP port with source_id %u", source_id);
   } else {
     PTCL_UdpPort_destroy(&udp_port);
     RCLCPP_ERROR(this->get_logger(), "Init of context failed.\n");

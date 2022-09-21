@@ -33,13 +33,16 @@ using namespace std::literals::chrono_literals;
 #define EXIT_VALUE_ERR (1)
 
 // PTCL UDP Port configuration data
-#define ID_ADDRESS_MAP_SIZE (2U)
-
-const uint8_t ipLocalhostArray[] = {127U, 0U, 0U, 1U};
+const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
+const uint32_t ip_local_host = PTCL_UdpPort_getIpFromArray(ip_local_host_array);
 const PTCL_Id autoware_id = 10U;
 const uint16_t autoware_port = 4990U;
 const PTCL_Id prodriver_id = 9U;
 const uint16_t prodriver_port = 4989U;
+
+const uint32_t num_ip_address_pairs = 2U;
+const PTCL_UdpIdAddressPair id_address_pairs[] = {
+  {autoware_id, ip_local_host, autoware_port}, {prodriver_id, ip_local_host, prodriver_port}};
 
 const uint8_t num_destinations_state = 1U;
 const PTCL_Id destinations_car_state[] = {prodriver_id};
@@ -49,12 +52,7 @@ const PTCL_Id destinations_perception_frame[] = {prodriver_id};
 
 const uint8_t num_destinations_route = 1U;
 const PTCL_Id destinations_route[] = {prodriver_id};
-
-/// Timeout of blocking UDP receiver call in milliseconds
-#define UDP_PORT_TIMEOUT_MS (1000)
-
-/// Duration of sleep call in while loop in microseconds
-#define WHILE_LOOP_SLEEP_DURATION_US (100)
+const int32_t ptcl_timeout = 1000;  // Timeout of blocking UDP receiver call in milliseconds
 
 namespace embotech_prodriver_connector
 {
@@ -117,14 +115,14 @@ void EmbotechProDriverConnector::setup_PTCL()
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
 
   setup_port(
-    ID_ADDRESS_MAP_SIZE, autoware_id, prodriver_id, ipLocalhostArray, autoware_port, prodriver_port,
-    context_car_state_, udp_port_car_state_);
-  setup_port(
-    ID_ADDRESS_MAP_SIZE, autoware_id, prodriver_id, ipLocalhostArray, autoware_port, prodriver_port,
-    context_perception_frame_, udp_port_perception_frame_);
-  setup_port(
-    ID_ADDRESS_MAP_SIZE, autoware_id, prodriver_id, ipLocalhostArray, autoware_port, prodriver_port,
-    context_route_, udp_port_route_);
+    num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, context_car_state_,
+    udp_port_car_state_);
+  // setup_port(
+  //   ID_ADDRESS_MAP_SIZE, autoware_id, prodriver_id, ipLocalhostArray, autoware_port,
+  //   prodriver_port, context_perception_frame_, udp_port_perception_frame_);
+  // setup_port(
+  //   ID_ADDRESS_MAP_SIZE, autoware_id, prodriver_id, ipLocalhostArray, autoware_port,
+  //   prodriver_port, context_route_, udp_port_route_);
 }
 
 void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedPtr msg)
@@ -275,8 +273,7 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_CarState & car_state)
     bool sent_state =
       PTCL_CarState_send(&context_car_state_, &car_state, destinations_car_state[dstIdx]);
     if (!sent_state) {
-      printf(
-        "Failed to send car_state message to PTCL ID %u.\n", destinations_car_state[dstIdx]);
+      printf("Failed to send car_state message to PTCL ID %u.\n", destinations_car_state[dstIdx]);
     } else {
       printf("car_state message sent to PTCL ID %u.\n", destinations_car_state[dstIdx]);
     }
@@ -287,13 +284,15 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_PerceptionFrame & perce
 {
   // Send PTCL perception_frame.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_perception_frame; ++dstIdx) {
-    bool sent_perception_frame =
-      PTCL_PerceptionFrame_send(&context_perception_frame_, &perception_frame, destinations_perception_frame[dstIdx]);
+    bool sent_perception_frame = PTCL_PerceptionFrame_send(
+      &context_perception_frame_, &perception_frame, destinations_perception_frame[dstIdx]);
     if (!sent_perception_frame) {
       printf(
-        "Failed to send perception_frame message to PTCL ID %u.\n", destinations_perception_frame[dstIdx]);
+        "Failed to send perception_frame message to PTCL ID %u.\n",
+        destinations_perception_frame[dstIdx]);
     } else {
-      printf("perception_frame message sent to PTCL ID %u.\n", destinations_perception_frame[dstIdx]);
+      printf(
+        "perception_frame message sent to PTCL ID %u.\n", destinations_perception_frame[dstIdx]);
     }
   }
 }
@@ -302,13 +301,11 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_Route & route)
 {
   // Send PTCL car_state.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_route; ++dstIdx) {
-    bool sent_route =
-      PTCL_Route_send(&context_route_, &route, destinations_route[dstIdx]);
+    bool sent_route = PTCL_Route_send(&context_route_, &route, destinations_route[dstIdx]);
     if (!sent_route) {
-      printf(
-        "Failed to send car_state message to PTCL ID %u.\n", destinations_route[dstIdx]);
+      printf("Failed to send route message to PTCL ID %u.\n", destinations_route[dstIdx]);
     } else {
-      printf("car_state message sent to PTCL ID %u.\n", destinations_route[dstIdx]);
+      printf("route message sent to PTCL ID %u.\n", destinations_route[dstIdx]);
     }
   }
 }
@@ -349,26 +346,23 @@ PTCL_Polytope EmbotechProDriverConnector::to_PTCL_polytope(const Shape & shape, 
 
 void EmbotechProDriverConnector::setup_port(
   const unsigned int & id_address_map_size, const unsigned int & source_id,
-  const unsigned int & target_id, const uint8_t local_host_ip_array[4],
-  const uint16_t & source_port, const uint16_t & target_port, PTCL_Context & context,
+  const uint32_t ip_local_host, const uint16_t & source_port, PTCL_Context & context,
   PTCL_UdpPort & udp_port)
 {
-  const PTCL_UdpIdAddressPair id_address_pairs[] = {
-    {source_id, PTCL_UdpPort_getIpFromArray(local_host_ip_array), source_port},
-    {target_id, PTCL_UdpPort_getIpFromArray(local_host_ip_array), target_port}};
-
-  // Setup PTCL context for car state
+  // Setup PTCL context
   PTCL_PortInterface * port_interface = PTCL_UdpPort_init(
-    PTCL_UdpPort_getIpFromArray(local_host_ip_array), source_port, id_address_pairs,
-    id_address_map_size, UDP_PORT_TIMEOUT_MS, source_id, &context, &udp_port);
+    ip_local_host, source_port, id_address_pairs, id_address_map_size, ptcl_timeout, source_id,
+    &context, &udp_port);
 
   bool setup_success = (port_interface != NULL);
   if (setup_success) {
     RCLCPP_ERROR(
-      this->get_logger(), "initialized sender UDP port with source_id %u.\n", source_id);
+      this->get_logger(), "initialized sender UDP port with source_id %u sender_ID %u.\n",
+      source_id);
   } else {
     PTCL_UdpPort_destroy(&udp_port);
-    printf("Init of context failed.\n");
+    RCLCPP_ERROR(this->get_logger(), "Init of context failed.\n");
+    // printf("Init of context failed.\n");
   }
 }
 

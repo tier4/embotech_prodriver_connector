@@ -123,7 +123,10 @@ void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedP
 {
   current_kinematics_ = msg;
 
-  if (!current_kinematics_ || !current_steer_ || !current_acceleration_) return;
+  if (!current_kinematics_ || !current_steer_ || !current_acceleration_) {
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000 /*ms*/, "waiting data...");
+    return;
+  }
 
   const auto PTCL_cat_state = calc_PTCL_car_state();
   send_to_PTCL(PTCL_cat_state);

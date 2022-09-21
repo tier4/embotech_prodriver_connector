@@ -357,7 +357,7 @@ void EmbotechProDriverConnector::setup_port(
   bool setup_success = (port_interface != NULL);
   if (setup_success) {
     RCLCPP_ERROR(
-      this->get_logger(), "initialized sender UDP port with source_id %u sender_ID %u.\n",
+      this->get_logger(), "initialized sender UDP port with source_id %u\n",
       source_id);
   } else {
     PTCL_UdpPort_destroy(&udp_port);

@@ -68,7 +68,7 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
     std::bind(&EmbotechProDriverConnector::on_kinematic_state, this, _1));
 
   sub_steering_ = create_subscription<SteeringReport>(
-    "/vehicle/status/steering", QoS{1},
+    "/vehicle/status/steering_status", QoS{1},
     std::bind(&EmbotechProDriverConnector::on_steering, this, _1));
 
   sub_acceleration_ = create_subscription<AccelWithCovarianceStamped>(

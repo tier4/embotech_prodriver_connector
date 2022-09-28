@@ -36,7 +36,6 @@ using namespace std::literals::chrono_literals;
 const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
 const uint32_t ip_local_host = PTCL_UdpPort_getIpFromArray(ip_local_host_array);
 
-
 const PTCL_Id navigator_id = 3U;
 const uint16_t navigator_port = 4983U;
 const PTCL_Id motion_planner_id = 4U;

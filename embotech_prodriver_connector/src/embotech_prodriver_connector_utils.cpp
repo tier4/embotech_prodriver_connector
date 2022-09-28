@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
 #include "embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp"
+
+#include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
 
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/utils.h>
@@ -26,8 +27,6 @@
 
 namespace embotech_prodriver_connector
 {
-
-
 
 PTCL_ObjectType to_PTCL_object_type(const ObjectClassification & classification)
 {
@@ -265,7 +264,8 @@ void calcObjectPolygon(const Shape & shape, const Pose & pose, Polygon2d * objec
   }
 }
 
-ObjectClassification getHighestProbClass(const std::vector<ObjectClassification> & classifications){
+ObjectClassification getHighestProbClass(const std::vector<ObjectClassification> & classifications)
+{
   float highest_prob = -1.0;
   ObjectClassification highest_class;
   for (const auto & c : classifications) {
@@ -276,6 +276,5 @@ ObjectClassification getHighestProbClass(const std::vector<ObjectClassification>
   }
   return highest_class;
 }
-
 
 }  // namespace embotech_prodriver_connector

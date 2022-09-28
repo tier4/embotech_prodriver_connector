@@ -35,23 +35,34 @@ using namespace std::literals::chrono_literals;
 // PTCL UDP Port configuration data
 const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
 const uint32_t ip_local_host = PTCL_UdpPort_getIpFromArray(ip_local_host_array);
+
+
+const PTCL_Id navigator_id = 3U;
+const uint16_t navigator_port = 4983U;
+const PTCL_Id motion_planner_id = 4U;
+const uint16_t motion_planner_port = 4984U;
+const PTCL_Id protect_id = 5U;
+const uint16_t protect_port = 4985U;
+const PTCL_Id developer_ui_id = 9U;
+const uint16_t developer_ui_port = 4989U;
 const PTCL_Id autoware_id = 10U;
 const uint16_t autoware_port = 4990U;
-const PTCL_Id prodriver_id = 9U;
-const uint16_t prodriver_port = 4989U;
-
-const uint32_t num_ip_address_pairs = 2U;
+const uint32_t num_ip_address_pairs = 6U;
 const PTCL_UdpIdAddressPair id_address_pairs[] = {
-  {autoware_id, ip_local_host, autoware_port}, {prodriver_id, ip_local_host, prodriver_port}};
+  {navigator_id, ip_local_host, navigator_port},
+  {motion_planner_id, ip_local_host, motion_planner_port},
+  {protect_id, ip_local_host, protect_port},
+  {developer_ui_id, ip_local_host, developer_ui_port},
+  {autoware_id, ip_local_host, autoware_port}};
 
-const uint8_t num_destinations_state = 1U;
-const PTCL_Id destinations_car_state[] = {prodriver_id};
-
-const uint8_t num_destinations_perception_frame = 1U;
-const PTCL_Id destinations_perception_frame[] = {prodriver_id};
-
+const uint8_t num_destinations_state = 4U;
+const PTCL_Id destinations_car_state[] = {
+  navigator_id, motion_planner_id, protect_id, developer_ui_id};
 const uint8_t num_destinations_route = 1U;
-const PTCL_Id destinations_route[] = {prodriver_id};
+const PTCL_Id destinations_route[] = {navigator_id};
+const uint8_t num_destinations_perception_frame = 3U;
+const PTCL_Id destinations_perception_frame[] = {motion_planner_id, protect_id, developer_ui_id};
+
 const int32_t ptcl_timeout = 1000;  // Timeout of blocking UDP receiver call in milliseconds
 
 namespace embotech_prodriver_connector

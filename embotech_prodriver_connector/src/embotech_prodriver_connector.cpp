@@ -115,8 +115,7 @@ void EmbotechProDriverConnector::setup_PTCL()
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
 
   setup_port(
-    num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, ptcl_context_,
-    ptcl_udp_port_);
+    num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, ptcl_context_, ptcl_udp_port_);
 }
 
 void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedPtr msg)
@@ -168,9 +167,9 @@ PTCL_CarState EmbotechProDriverConnector::calc_PTCL_car_state()
   // const PTCL_Coordinate position_y_PTCL = std::atan2(position_y_PTCL, position_x_PTCL);
 
   PTCL_CarState cat_state;
-  const float64_t current_time = get_clock()->now().seconds();
-  cat_state.header.measurementTime = PTCL_toPTCLTime(current_time);
-  cat_state.header.timeReference = PTCL_toPTCLTime(current_time);
+  const Embo_Time current_time = Embo_Time_getCurrentTime();
+  cat_state.header.measurementTime = current_time;
+  cat_state.header.timeReference = current_time;
   cat_state.header.vehicleId = 1;
   cat_state.pose.position.x = ptcl_pos.x;
   cat_state.pose.position.y = ptcl_pos.y;
@@ -195,12 +194,12 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
 {
   PTCL_PerceptionFrame ptcl_frame;
 
-  const double measured_time_sec = rclcpp::Time(object.header.stamp).seconds();
-  ptcl_frame.header.measurementTime = PTCL_toPTCLTime(measured_time_sec);  // double -> uint64_t
-  ptcl_frame.header.oemId = 0;                                             // TODO: think later
-  ptcl_frame.header.mapId = 0;                                             // TODO: think later
-  ptcl_frame.header.mapCrc = 0;                                            // TODO: think later
-  ptcl_frame.header.vehicleId = 1U;                                        // TODO: think later
+  const Embo_Time current_time = Embo_Time_getCurrentTime();
+  ptcl_frame.header.measurementTime = current_time;
+  ptcl_frame.header.oemId = 0;       // TODO: think later
+  ptcl_frame.header.mapId = 0;       // TODO: think later
+  ptcl_frame.header.mapCrc = 0;      // TODO: think later
+  ptcl_frame.header.vehicleId = 1U;  // TODO: think later
 
   if (object.objects.size() >= PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX) {
     throw std::runtime_error(

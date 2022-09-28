@@ -33,6 +33,7 @@
 #include "autoware_auto_vehicle_msgs/msg/velocity_report.hpp"
 
 // Pro-DRIVER
+#include "embo_time.h"
 #include "lanelet2_core/primitives/GPSPoint.h"
 #include "ptcl/messages/ptcl_perception_frame.h"
 #include "ptcl/ports/ptcl_port_udp.h"

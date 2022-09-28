@@ -36,7 +36,6 @@ using namespace std::literals::chrono_literals;
 const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
 const uint32_t ip_local_host = PTCL_UdpPort_getIpFromArray(ip_local_host_array);
 
-
 const PTCL_Id navigator_id = 3U;
 const uint16_t navigator_port = 4983U;
 const PTCL_Id motion_planner_id = 4U;
@@ -47,6 +46,9 @@ const PTCL_Id developer_ui_id = 9U;
 const uint16_t developer_ui_port = 4989U;
 const PTCL_Id autoware_id = 10U;
 const uint16_t autoware_port = 4990U;
+const PTCL_Id trajectory_receiver_id = 11U;
+const uint16_t trajectory_receiver_port = 4991U;
+
 const uint32_t num_ip_address_pairs = 6U;
 const PTCL_UdpIdAddressPair id_address_pairs[] = {
   {navigator_id, ip_local_host, navigator_port},
@@ -64,6 +66,7 @@ const uint8_t num_destinations_perception_frame = 3U;
 const PTCL_Id destinations_perception_frame[] = {motion_planner_id, protect_id, developer_ui_id};
 
 const int32_t ptcl_timeout = 1000;  // Timeout of blocking UDP receiver call in milliseconds
+#define WHILE_LOOP_SLEEP_DURATION_US (100)
 
 namespace embotech_prodriver_connector
 {
@@ -115,16 +118,48 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   mgrs_projector_.setMGRSCode(mgrs_code_);
   origin_prodriver_utm_ = convert_LatLon_to_UTM_coordinate(origin_prodriver_latlon_);
 
-  setup_PTCL();
-}
-
-void EmbotechProDriverConnector::setup_PTCL()
-{
   // Initialize PTCL logging
   //  - Log threshold of console determined by environment variable
   PTCL_setLogPrefix("EX");
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
 
+  setup_PTCL();
+  setup_CB();
+}
+
+void EmbotechProDriverConnector::setup_CB()
+{
+  setup_receiver_port(
+    num_ip_address_pairs, trajectory_receiver_id, ip_local_host, trajectory_receiver_port,
+    ptcl_context_receiver_, ptcl_udp_port_receiver_);
+  // It is safe to call PTCL_PortInterface_addContext on a portInterface that
+  // is NULL. [Additional Context Installation]
+  PTCL_Context context_receiver_alternative;
+  const bool installSuccess = PTCL_Trajectory_installCallback(
+    &contextReceiver, trajectory_CB, &trajectory_, protect_id, &trajectory_receiver_context_);
+
+  bool success_add_alternative_context = PTCL_PortInterface_addContext(
+    portInterfaceReceiver, RECEIVER_ALTERNATIVE_ID, &contextReceiverAlternative);
+  const bool installSuccess = PTCL_Trajectory_installCallback(
+    &contextReceiver, perceptionFrame_CB, &exampleData, sourceId, &trajectory_receiver_context_);
+  if (installSuccess) {
+    PTCL_UdpPort_startReceiving(&ptcl_udp_port_receiver_);
+
+    printf(
+      "Initialized callback on receiver port for message from"
+      "sender port with PTCL_Id %u.\n",
+      sourceId);
+    // Wait for callback to have received the message
+    while (!exampleData.msgReceived) {
+      usleep(WHILE_LOOP_SLEEP_DURATION_US);
+    }
+  } else {
+    printf("Receiving message from receiver failed.\n");
+  }
+}
+
+void EmbotechProDriverConnector::setup_PTCL()
+{
   setup_port(
     num_ip_address_pairs, autoware_id, ip_local_host, autoware_port, ptcl_context_, ptcl_udp_port_);
 }
@@ -374,7 +409,7 @@ void EmbotechProDriverConnector::setup_port(
 
   bool setup_success = (port_interface != NULL);
   if (setup_success) {
-    RCLCPP_INFO(this->get_logger(), "initialized sender UDP port with source_id %u", source_id);
+    RCLCPP_INFO(this->get_logger(), "initialized UDP port with source_id %u", source_id);
   } else {
     PTCL_UdpPort_destroy(&udp_port);
     RCLCPP_ERROR(this->get_logger(), "Init of context failed.\n");

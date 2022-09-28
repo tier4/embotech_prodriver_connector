@@ -78,9 +78,12 @@ private:
   rclcpp::Subscription<PredictedObjects>::SharedPtr sub_dynamic_object_;
   rclcpp::Subscription<PoseStamped>::SharedPtr sub_goal_;
 
-  // port setup
+  // Setup UDP port
   PTCL_Context ptcl_context_;
   PTCL_UdpPort ptcl_udp_port_;
+  PTCL_Context ptcl_context_receiver_;
+  PTCL_UdpPort ptcl_udp_port_receiver_;
+  PTCL_TrajectoryReceiverContext trajectory_receiver_context_;
 
   // coordinates conversion
   lanelet::projection::MGRSProjector mgrs_projector_;

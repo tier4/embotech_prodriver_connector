@@ -261,8 +261,14 @@ PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped & goal)
   const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
   ptcl_route.vehicleId = 1U;
+  ptcl_route.numElements = 1U;
   ptcl_route.numGoalStates = 1U;
-  ptcl_route.goalStates[1U].id += 1U;  // when new goal is shown up, unique id + 1;
+  ptcl_route.elements[1U].mapId = 0;
+  ptcl_route.elements[1U].type = PTCL_ROUTE_ELEMENT_TYPE_GOAL_STATE;
+  // ptcl_route.elements[1U].typeId = 1U;
+  ptcl_route.elements[1U].enableNominalSpeed = false;
+  // ptcl_route_elements[1U].properties; // should I define?
+  ptcl_route.goalStates[1U].id = 1U;
   ptcl_route.goalStates[1U].pose.position.x = ptcl_pos.x;
   ptcl_route.goalStates[1U].pose.position.y = ptcl_pos.y;
   // desired steered wheels angle amd velocity at the goal state is basically 0

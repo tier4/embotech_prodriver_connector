@@ -258,22 +258,24 @@ PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped & goal)
   PTCL_Route ptcl_route;
   const auto mgrs_pos = goal.pose.position;
   const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
+  const double yaw_pose = tf2::getYaw(goal.pose.orientation);
 
   ptcl_route.vehicleId = 1U;
   ptcl_route.numElements = 1U;
   ptcl_route.numGoalStates = 1U;
-  ptcl_route.elements[1U].mapId = 0;
-  ptcl_route.elements[1U].type = PTCL_ROUTE_ELEMENT_TYPE_GOAL_STATE;
-  // ptcl_route.elements[1U].typeId = 1U;
-  ptcl_route.elements[1U].enableNominalSpeed = false;
-  // ptcl_route_elements[1U].properties; // should I define?
-  ptcl_route.goalStates[1U].id = 1U;
-  ptcl_route.goalStates[1U].pose.position.x = ptcl_pos.x;
-  ptcl_route.goalStates[1U].pose.position.y = ptcl_pos.y;
+  ptcl_route.elements[0].mapId = 0;
+  ptcl_route.elements[0].type = PTCL_ROUTE_ELEMENT_TYPE_GOAL_STATE;
+  ptcl_route.elements[0].typeId = 1U;
+  ptcl_route.elements[0].enableNominalSpeed = false;
+  // ptcl_route_elements[0].properties; // should I define?
+  ptcl_route.goalStates[0].id = 1U;
+  ptcl_route.goalStates[0].pose.position.x = ptcl_pos.x;
+  ptcl_route.goalStates[0].pose.position.y = ptcl_pos.y;
+  ptcl_route.goalStates[0].pose.heading = PTCL_toPTCLAngleWrapped(yaw_pose);
   // desired steered wheels angle amd velocity at the goal state is basically 0
-  ptcl_route.goalStates[1U].angleSteeredWheels = 0;
-  ptcl_route.goalStates[1U].velLon = 0;
-  ptcl_route.goalStates[1U].duration = 0;  // rest time after reaching goal
+  ptcl_route.goalStates[0].angleSteeredWheels = PTCL_toPTCLAngleWrapped(yaw_pose);
+  ptcl_route.goalStates[0].velLon = 0;
+  ptcl_route.goalStates[0].duration = 0;  // rest time after reaching goal
 
   return ptcl_route;
 }

@@ -68,6 +68,16 @@ const PTCL_Id destinations_perception_frame[] = {motion_planner_id, protect_id, 
 const int32_t ptcl_timeout = 1000;  // Timeout of blocking UDP receiver call in milliseconds
 #define WHILE_LOOP_SLEEP_DURATION_US (100)
 
+// Callback function. Called when a new message is received on a port it was
+// installed on. Copies message to userData and sets flag for main process.
+static void car_trajectory_CB(
+  const PTCL_CarTrajectory * msg, const PTCL_MsgInfoHandle msgInfoHandle, void * userData)
+{
+  (void)msgInfoHandle;
+  PTCL_CarTrajectory * car_trajectory_ = (PTCL_CarTrajectory *)userData;
+  // Copy received message msg to location provided by the user in *userData
+  memcpy(car_trajectory_, msg, sizeof(PTCL_CarTrajectory));
+}
 namespace embotech_prodriver_connector
 {
 
@@ -129,32 +139,21 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
 
 void EmbotechProDriverConnector::setup_CB()
 {
-  setup_receiver_port(
+  setup_port(
     num_ip_address_pairs, trajectory_receiver_id, ip_local_host, trajectory_receiver_port,
     ptcl_context_receiver_, ptcl_udp_port_receiver_);
-  // It is safe to call PTCL_PortInterface_addContext on a portInterface that
-  // is NULL. [Additional Context Installation]
-  PTCL_Context context_receiver_alternative;
-  const bool installSuccess = PTCL_Trajectory_installCallback(
-    &contextReceiver, trajectory_CB, &trajectory_, protect_id, &trajectory_receiver_context_);
+  const bool installSuccess = PTCL_CarTrajectory_installCallback(
+    &ptcl_context_receiver_, car_trajectory_CB, &car_trajectory_, protect_id,
+    &trajectory_receiver_context_);
 
-  bool success_add_alternative_context = PTCL_PortInterface_addContext(
-    portInterfaceReceiver, RECEIVER_ALTERNATIVE_ID, &contextReceiverAlternative);
-  const bool installSuccess = PTCL_Trajectory_installCallback(
-    &contextReceiver, perceptionFrame_CB, &exampleData, sourceId, &trajectory_receiver_context_);
   if (installSuccess) {
     PTCL_UdpPort_startReceiving(&ptcl_udp_port_receiver_);
-
     printf(
       "Initialized callback on receiver port for message from"
       "sender port with PTCL_Id %u.\n",
-      sourceId);
-    // Wait for callback to have received the message
-    while (!exampleData.msgReceived) {
-      usleep(WHILE_LOOP_SLEEP_DURATION_US);
-    }
+      protect_id);
   } else {
-    printf("Receiving message from receiver failed.\n");
+    printf("Start receiving message from protect failed.\n");
   }
 }
 
@@ -327,8 +326,8 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_CarState & car_state)
         get_logger(), "Failed to send car_state message to PTCL ID %u.",
         destinations_car_state[dstIdx]);
     } else {
-      RCLCPP_INFO(
-        get_logger(), "car_state message sent to PTCL ID %u.", destinations_car_state[dstIdx]);
+      // RCLCPP_INFO(
+      //   get_logger(), "car_state message sent to PTCL ID %u.", destinations_car_state[dstIdx]);
     }
   }
 }
@@ -344,9 +343,9 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_PerceptionFrame & perce
         get_logger(), "Failed to send perception_frame message to PTCL ID %u.",
         destinations_perception_frame[dstIdx]);
     } else {
-      RCLCPP_INFO(
-        get_logger(), "perception_frame message sent to PTCL ID %u.",
-        destinations_perception_frame[dstIdx]);
+      // RCLCPP_INFO(
+      //   get_logger(), "perception_frame message sent to PTCL ID %u.",
+      //   destinations_perception_frame[dstIdx]);
     }
   }
 }

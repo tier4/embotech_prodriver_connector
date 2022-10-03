@@ -83,7 +83,10 @@ private:
   PTCL_UdpPort ptcl_udp_port_;
   PTCL_Context ptcl_context_receiver_;
   PTCL_UdpPort ptcl_udp_port_receiver_;
-  PTCL_TrajectoryReceiverContext trajectory_receiver_context_;
+  PTCL_CarTrajectoryReceiverContext trajectory_receiver_context_;
+
+  // PTCL msg
+  PTCL_CarTrajectory car_trajectory_;
 
   // coordinates conversion
   lanelet::projection::MGRSProjector mgrs_projector_;
@@ -112,6 +115,7 @@ private:
     const uint32_t ip_local_host, const uint16_t & source_port, PTCL_Context & context,
     PTCL_UdpPort & udp_port);
   void setup_PTCL();
+  void setup_CB();
 
   // conversion: ego
   PTCL_CarState calc_PTCL_car_state();

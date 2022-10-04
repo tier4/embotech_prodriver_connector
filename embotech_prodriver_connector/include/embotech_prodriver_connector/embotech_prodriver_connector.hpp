@@ -54,6 +54,7 @@ using autoware_auto_perception_msgs::msg::PredictedObjects;
 using autoware_auto_perception_msgs::msg::PredictedPath;
 using autoware_auto_perception_msgs::msg::Shape;
 using autoware_auto_vehicle_msgs::msg::SteeringReport;
+using autoware_auto_planning_msgs::msg::Trajectory;
 
 using geometry_msgs::msg::AccelWithCovarianceStamped;
 using geometry_msgs::msg::Pose;
@@ -117,8 +118,12 @@ private:
   void setup_PTCL();
   void setup_CB();
 
+  // conversion: trajectory
+  // PTCL_CarState calc_PTCL_car_state();
+  Trajectory to_autoware_trajectory(const PTCL_CarTrajectory & car_trajectory);
+
   // conversion: ego
-  PTCL_CarState calc_PTCL_car_state();
+  PTCL_CarState to_PTCL_car_state();
   void send_to_PTCL(const PTCL_CarState & car_state);
 
   // conversion: perception

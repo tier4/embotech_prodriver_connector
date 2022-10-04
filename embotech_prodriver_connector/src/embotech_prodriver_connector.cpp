@@ -77,6 +77,7 @@ static void car_trajectory_CB(
   PTCL_CarTrajectory * car_trajectory_ = (PTCL_CarTrajectory *)userData;
   // Copy received message msg to location provided by the user in *userData
   memcpy(car_trajectory_, msg, sizeof(PTCL_CarTrajectory));
+
 }
 namespace embotech_prodriver_connector
 {
@@ -172,7 +173,7 @@ void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedP
     return;
   }
 
-  const auto PTCL_cat_state = calc_PTCL_car_state();
+  const auto PTCL_cat_state = to_PTCL_car_state();
   send_to_PTCL(PTCL_cat_state);
 }
 
@@ -203,7 +204,7 @@ void EmbotechProDriverConnector::on_goal(const PoseStamped::ConstSharedPtr msg)
   send_to_PTCL(PTCL_route);
 }
 
-PTCL_CarState EmbotechProDriverConnector::calc_PTCL_car_state()
+PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state()
 {
   const auto mgrs_pos = current_kinematics_->pose.pose.position;
   const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
@@ -212,9 +213,9 @@ PTCL_CarState EmbotechProDriverConnector::calc_PTCL_car_state()
   // const PTCL_Coordinate position_y_PTCL = std::atan2(position_y_PTCL, position_x_PTCL);
 
   PTCL_CarState cat_state;
-  const Embo_Time current_time = Embo_Time_getCurrentTime();
-  cat_state.header.measurementTime = current_time;
-  cat_state.header.timeReference = current_time;
+  const double measured_time_sec = rclcpp::Time(current_kinematics_->header.stamp).seconds();
+  cat_state.header.measurementTime = PTCL_toPTCLTime(measured_time_sec);  // double -> uint64_t
+  cat_state.header.timeReference = PTCL_toPTCLTime(measured_time_sec);  // double -> uint64
   cat_state.header.vehicleId = 1;
   cat_state.pose.position.x = ptcl_pos.x;
   cat_state.pose.position.y = ptcl_pos.y;
@@ -238,9 +239,8 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
   const PredictedObjects & object)
 {
   PTCL_PerceptionFrame ptcl_frame;
-
-  const Embo_Time current_time = Embo_Time_getCurrentTime();
-  ptcl_frame.header.measurementTime = current_time;
+  const double measured_time_sec = rclcpp::Time(object.header.stamp).seconds();
+  ptcl_frame.header.measurementTime = PTCL_toPTCLTime(measured_time_sec);  // double -> uint64_t
   ptcl_frame.header.oemId = 0;       // TODO: think later
   ptcl_frame.header.mapId = 0;       // TODO: think later
   ptcl_frame.header.mapCrc = 0;      // TODO: think later
@@ -286,6 +286,13 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
   ptcl_frame.numFieldOfRegardElementsNegative = 0;
 
   return ptcl_frame;
+}
+
+Trajectory EmbotechProDriverConnector::to_autoware_trajectory([[maybe_unused]]const PTCL_CarTrajectory & ptcl_car_trajectory)
+{
+  Trajectory trajectory;
+
+  return trajectory;
 }
 
 PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped & goal)

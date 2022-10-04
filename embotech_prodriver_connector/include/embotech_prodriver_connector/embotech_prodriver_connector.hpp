@@ -38,6 +38,7 @@
 #include "ptcl/messages/ptcl_perception_frame.h"
 #include "ptcl/ports/ptcl_port_udp.h"
 #include "ptcl/ptcl.h"
+#include "ptcl/utils/ptcl_si_unit_conversion.h"
 #include "ptcl/utils/si_ptcl_unit_conversion.h"
 
 #include <memory>
@@ -53,8 +54,9 @@ using autoware_auto_perception_msgs::msg::PredictedObjectKinematics;
 using autoware_auto_perception_msgs::msg::PredictedObjects;
 using autoware_auto_perception_msgs::msg::PredictedPath;
 using autoware_auto_perception_msgs::msg::Shape;
-using autoware_auto_vehicle_msgs::msg::SteeringReport;
 using autoware_auto_planning_msgs::msg::Trajectory;
+using autoware_auto_planning_msgs::msg::TrajectoryPoint;
+using autoware_auto_vehicle_msgs::msg::SteeringReport;
 
 using geometry_msgs::msg::AccelWithCovarianceStamped;
 using geometry_msgs::msg::Pose;
@@ -136,6 +138,7 @@ private:
 
   // common
   PTCL_Position convert_to_PTCL_Point(const MGRSPoint & mgrs_point);
+  MGRSPoint convert_to_MGRS_Point(const PTCL_Position & ptcl_point);
   PTCL_Polytope to_PTCL_polytope(const Shape & shape, const Pose & pose);
 };
 }  // namespace embotech_prodriver_connector

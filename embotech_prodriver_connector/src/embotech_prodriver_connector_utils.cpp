@@ -151,6 +151,94 @@ UTMPoint convert_LatLon_to_UTM_coordinate(const lanelet::GPSPoint & p_target)
   return {easting, northing, 0.0};
 }
 
+lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
+{
+  // TODO(K.Sugahara): this is from the Turbo87/UTM repository. Take right way to manage this code.
+  // https://github.com/Turbo87/utm/blob/master/utm/conversion.py#L80-L187
+
+  // parameters
+  constexpr auto zone_number = 54;
+  constexpr auto K0 = 0.9996;
+
+  constexpr auto E = 0.00669438;
+  constexpr auto E2 = E * E;
+  constexpr auto E3 = E2 * E;
+  constexpr auto E_P2 = E / (1 - E);
+
+  const auto SQRT_E = std::sqrt(1 - E);
+  const auto _E = (1 - SQRT_E) / (1 + SQRT_E);
+  const auto _E2 = _E * _E;
+  const auto _E3 = _E2 * _E;
+  const auto _E4 = _E3 * _E;
+  const auto _E5 = _E4 * _E;
+
+  constexpr auto M1 = (1 - E / 4 - 3 * E2 / 64 - 5 * E3 / 256);
+
+  const auto P2 = (3 / 2 * _E - 27 / 32 * _E3 + 269 / 512 * _E5);
+  const auto P3 = (21 / 16 * _E2 - 55 / 32 * _E4);
+  const auto P4 = (151 / 96 * _E3 - 417 / 128 * _E5);
+  const auto P5 = (1097 / 512 * _E4);
+
+  constexpr auto R = 6378137;
+
+  constexpr double LATLON_TO_RAD = M_PI / 180.0;
+
+  const auto zone_number_to_central_longitude = [](const auto zone_number) {
+    return (zone_number - 1) * 6 - 180 + 3;
+  };
+
+  const auto mod_angle = [](const auto value) { return std::fmod(value + M_PI, 2 * M_PI) - M_PI; };
+
+  const auto x = p_target.x() - 500000;
+  const auto y = p_target.y();
+
+  // if !northern:
+  //   y -= 10000000
+
+  const auto m = y / K0;
+  const auto mu = m / (R * M1);
+
+  const auto p_rad =
+    (mu + P2 * std::sin(2 * mu) + P3 * std::sin(4 * mu) + P4 * std::sin(6 * mu) +
+     P5 * std::sin(8 * mu));
+
+  const auto p_sin = std::sin(p_rad);
+  const auto p_sin2 = p_sin * p_sin;
+
+  const auto p_cos = std::cos(p_rad);
+
+  const auto p_tan = p_sin / p_cos;
+  const auto p_tan2 = p_tan * p_tan;
+  const auto p_tan4 = p_tan2 * p_tan2;
+
+  const auto ep_sin = 1 - E * p_sin2;
+  const auto ep_sin_sqrt = std::sqrt(1 - E * p_sin2);
+
+  const auto n = R / ep_sin_sqrt;
+  const auto r = (1 - E) / ep_sin;
+
+  const auto c = E_P2 * p_cos * p_cos;
+  const auto c2 = c * c;
+
+  const auto d = x / (n * K0);
+  const auto d2 = d * d;
+  const auto d3 = d2 * d;
+  const auto d4 = d3 * d;
+  const auto d5 = d4 * d;
+  const auto d6 = d5 * d;
+
+  const auto latitude =
+    (p_rad - (p_tan / r) * (d2 / 2 - d4 / 24 * (5 + 3 * p_tan2 + 10 * c - 4 * c2 - 9 * E_P2)) +
+     d6 / 720 * (61 + 90 * p_tan2 + 298 * c + 45 * p_tan4 - 252 * E_P2 - 3 * c2));
+
+  auto longitude = (d - d3 / 6 * (1 + 2 * p_tan2 + c) +
+                    d5 / 120 * (5 - 2 * c + 28 * p_tan2 - 3 * c2 + 8 * E_P2 + 24 * p_tan4)) /
+                   p_cos;
+
+  longitude = mod_angle(longitude + zone_number_to_central_longitude(zone_number) * LATLON_TO_RAD);
+  return {latitude, longitude, 0};
+}
+
 PredictedPath get_highest_prob_path(const PredictedObjectKinematics object)
 {
   const auto & paths = object.predicted_paths;

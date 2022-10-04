@@ -19,10 +19,11 @@ namespace embotech_prodriver_connector
 {
 using tier4_autoware_utils::Polygon2d;
 
-
 PTCL_ObjectType to_PTCL_object_type(const ObjectClassification & classification);
 
 UTMPoint convert_LatLon_to_UTM_coordinate(const lanelet::GPSPoint & p_target);
+lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target);
+MGRSPoint convert_to_MGRS_Point(const PTCL_Position & ptcl_point);
 
 PredictedPath get_highest_prob_path(const PredictedObjectKinematics object);
 

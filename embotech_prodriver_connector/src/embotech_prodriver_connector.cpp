@@ -77,7 +77,6 @@ static void car_trajectory_CB(
   PTCL_CarTrajectory * car_trajectory_ = (PTCL_CarTrajectory *)userData;
   // Copy received message msg to location provided by the user in *userData
   memcpy(car_trajectory_, msg, sizeof(PTCL_CarTrajectory));
-
 }
 namespace embotech_prodriver_connector
 {
@@ -215,7 +214,7 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state()
   PTCL_CarState cat_state;
   const double measured_time_sec = rclcpp::Time(current_kinematics_->header.stamp).seconds();
   cat_state.header.measurementTime = PTCL_toPTCLTime(measured_time_sec);  // double -> uint64_t
-  cat_state.header.timeReference = PTCL_toPTCLTime(measured_time_sec);  // double -> uint64
+  cat_state.header.timeReference = PTCL_toPTCLTime(measured_time_sec);    // double -> uint64
   cat_state.header.vehicleId = 1;
   cat_state.pose.position.x = ptcl_pos.x;
   cat_state.pose.position.y = ptcl_pos.y;
@@ -241,10 +240,10 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
   PTCL_PerceptionFrame ptcl_frame;
   const double measured_time_sec = rclcpp::Time(object.header.stamp).seconds();
   ptcl_frame.header.measurementTime = PTCL_toPTCLTime(measured_time_sec);  // double -> uint64_t
-  ptcl_frame.header.oemId = 0;       // TODO: think later
-  ptcl_frame.header.mapId = 0;       // TODO: think later
-  ptcl_frame.header.mapCrc = 0;      // TODO: think later
-  ptcl_frame.header.vehicleId = 1U;  // TODO: think later
+  ptcl_frame.header.oemId = 0;                                             // TODO: think later
+  ptcl_frame.header.mapId = 0;                                             // TODO: think later
+  ptcl_frame.header.mapCrc = 0;                                            // TODO: think later
+  ptcl_frame.header.vehicleId = 1U;                                        // TODO: think later
 
   if (object.objects.size() >= PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX) {
     throw std::runtime_error(
@@ -288,9 +287,30 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
   return ptcl_frame;
 }
 
-Trajectory EmbotechProDriverConnector::to_autoware_trajectory([[maybe_unused]]const PTCL_CarTrajectory & ptcl_car_trajectory)
+Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
+  const PTCL_CarTrajectory & ptcl_car_trajectory)
 {
   Trajectory trajectory;
+  float64_t measured_time_sec =
+    PTCL_toTime(ptcl_car_trajectory.header.measurementTime);  // uint64_t -> double
+  trajectory.header.stamp = rclcpp::Time(measured_time_sec);
+  trajectory.header.frame_id = "map";
+  for (size_t i = 0; i < ptcl_car_trajectory.numElements; i++) {
+    const auto & car_trajectory_element = ptcl_car_trajectory.elements[i];
+    // const auto & element_position = ptcl_car_trajectory.elements[i].pose.position;
+    auto & trajectory_point = trajectory.points.at(i);
+    const auto element_pos = convert_to_MGRS_Point(car_trajectory_element.pose.position);
+    trajectory_point.time_from_start = rclcpp::Duration::from_nanoseconds(
+      PTCL_toTimeOffset(car_trajectory_element.timeOffset) * 10e6);
+    trajectory_point.pose.position.x = element_pos.x();
+    trajectory_point.pose.position.y = element_pos.y();
+    trajectory_point.pose.position.z = element_pos.z();
+    trajectory_point.longitudinal_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLon);
+    trajectory_point.lateral_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLat);
+    trajectory_point.acceleration_mps2 = PTCL_toAccel(car_trajectory_element.accelLon);
+    trajectory_point.front_wheel_angle_rad = PTCL_toPTCLAngleWrapped(car_trajectory_element.angleSteeredWheels);
+    trajectory_point.rear_wheel_angle_rad = 0; //think later
+  }
 
   return trajectory;
 }
@@ -387,6 +407,22 @@ PTCL_Position EmbotechProDriverConnector::convert_to_PTCL_Point(const MGRSPoint 
   ptcl_pos.y = PTCL_toPTCLCoordinate(utm_point.y() - origin_prodriver_utm_.y());
 
   return ptcl_pos;
+}
+
+MGRSPoint EmbotechProDriverConnector::convert_to_MGRS_Point(const PTCL_Position & ptcl_pos)
+{
+  // convert to global coordinate (double)
+  UTMPoint utm_point;
+  utm_point.x() = PTCL_toCoordinate(ptcl_pos.x) + origin_prodriver_utm_.x();
+  utm_point.y() = PTCL_toCoordinate(ptcl_pos.y) + origin_prodriver_utm_.y();
+  utm_point.z() = 0;
+
+  const lanelet::GPSPoint gps_point =
+    convert_UTM_to_LatLon_coordinate({utm_point.x(), utm_point.y(), utm_point.z()});
+
+  const auto mgrs_point = mgrs_projector_.forward(gps_point);
+
+  return mgrs_point;
 }
 
 PTCL_Polytope EmbotechProDriverConnector::to_PTCL_polytope(const Shape & shape, const Pose & pose)

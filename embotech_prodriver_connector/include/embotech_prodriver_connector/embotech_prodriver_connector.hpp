@@ -75,11 +75,15 @@ public:
   explicit EmbotechProDriverConnector(const rclcpp::NodeOptions & options);
 
 private:
+  rclcpp::Publisher<Trajectory>::SharedPtr pub_trajectory_;
   rclcpp::Subscription<Odometry>::SharedPtr sub_kinematic_state_;
   rclcpp::Subscription<AccelWithCovarianceStamped>::SharedPtr sub_acceleration_;
   rclcpp::Subscription<SteeringReport>::SharedPtr sub_steering_;
   rclcpp::Subscription<PredictedObjects>::SharedPtr sub_dynamic_object_;
   rclcpp::Subscription<PoseStamped>::SharedPtr sub_goal_;
+
+  uint32_t timer_sampling_time_ms_;        //!< @brief timer sampling time
+  rclcpp::TimerBase::SharedPtr on_timer_;  //!< @brief timer for trajectory CB
 
   // Setup UDP port
   PTCL_Context ptcl_context_;
@@ -87,9 +91,6 @@ private:
   PTCL_Context ptcl_context_receiver_;
   PTCL_UdpPort ptcl_udp_port_receiver_;
   PTCL_CarTrajectoryReceiverContext trajectory_receiver_context_;
-
-  // PTCL msg
-  PTCL_CarTrajectory car_trajectory_;
 
   // coordinates conversion
   lanelet::projection::MGRSProjector mgrs_projector_;
@@ -104,6 +105,7 @@ private:
   AccelWithCovarianceStamped::ConstSharedPtr current_acceleration_;
   PredictedObjects::ConstSharedPtr current_objects_;
   PoseStamped::ConstSharedPtr current_goal_;
+  Trajectory current_trajectory_;
 
   // autoware callbacks
   void on_kinematic_state(const Odometry::ConstSharedPtr msg);
@@ -119,9 +121,9 @@ private:
     PTCL_UdpPort & udp_port);
   void setup_PTCL();
   void setup_CB();
+  void on_timer();
 
   // conversion: trajectory
-  // PTCL_CarState calc_PTCL_car_state();
   Trajectory to_autoware_trajectory(const PTCL_CarTrajectory & car_trajectory);
 
   // conversion: ego

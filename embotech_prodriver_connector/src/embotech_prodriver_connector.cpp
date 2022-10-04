@@ -68,16 +68,27 @@ const PTCL_Id destinations_perception_frame[] = {motion_planner_id, protect_id, 
 const int32_t ptcl_timeout = 1000;  // Timeout of blocking UDP receiver call in milliseconds
 #define WHILE_LOOP_SLEEP_DURATION_US (100)
 
+// PTCL msg
+typedef struct CarTrajectoryData
+{
+  PTCL_CarTrajectory car_trajectory;
+  volatile bool msg_received;
+} CarTrajectoryData;
+CarTrajectoryData car_trajectory_data_;
+
 // Callback function. Called when a new message is received on a port it was
 // installed on. Copies message to userData and sets flag for main process.
 static void car_trajectory_CB(
   const PTCL_CarTrajectory * msg, const PTCL_MsgInfoHandle msgInfoHandle, void * userData)
 {
   (void)msgInfoHandle;
-  PTCL_CarTrajectory * car_trajectory_ = (PTCL_CarTrajectory *)userData;
+  CarTrajectoryData * car_trajectory_data = (CarTrajectoryData *)userData;
   // Copy received message msg to location provided by the user in *userData
-  memcpy(car_trajectory_, msg, sizeof(PTCL_CarTrajectory));
+  memcpy(&(car_trajectory_data->car_trajectory), msg, sizeof(CarTrajectoryData));
+  // Set flag
+  car_trajectory_data->msg_received = true;
 }
+
 namespace embotech_prodriver_connector
 {
 
@@ -86,6 +97,8 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
 {
   using rclcpp::QoS;
   using std::placeholders::_1;
+
+  pub_trajectory_ = create_publisher<Trajectory>("/prodriver/trajectory", 1);
 
   sub_kinematic_state_ = create_subscription<Odometry>(
     "/localization/kinematic_state", QoS{1},
@@ -106,6 +119,11 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   sub_goal_ = create_subscription<PoseStamped>(
     "/planning/mission_planning/goal", QoS{1},
     std::bind(&EmbotechProDriverConnector::on_goal, this, _1));
+
+  timer_sampling_time_ms_ = static_cast<uint32_t>(25);
+  on_timer_ = rclcpp::create_timer(
+    this, get_clock(), std::chrono::milliseconds(timer_sampling_time_ms_),
+    std::bind(&EmbotechProDriverConnector::on_timer, this));
 
   // origin of lat/lon coordinates in PTCL are map
   //  odaiba
@@ -132,9 +150,19 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   //  - Log threshold of console determined by environment variable
   PTCL_setLogPrefix("EX");
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
+  memset(&car_trajectory_data_, 0, sizeof(CarTrajectoryData));
 
   setup_PTCL();
   setup_CB();
+}
+
+void EmbotechProDriverConnector::on_timer()
+{
+  if (!car_trajectory_data_.msg_received) {
+    return;
+  }
+  // current_trajectory_ = to_autoware_trajectory(car_trajectory_);
+  // pub_trajectory_->publish(current_trajectory_);
 }
 
 void EmbotechProDriverConnector::setup_CB()
@@ -143,7 +171,7 @@ void EmbotechProDriverConnector::setup_CB()
     num_ip_address_pairs, trajectory_receiver_id, ip_local_host, trajectory_receiver_port,
     ptcl_context_receiver_, ptcl_udp_port_receiver_);
   const bool installSuccess = PTCL_CarTrajectory_installCallback(
-    &ptcl_context_receiver_, car_trajectory_CB, &car_trajectory_, protect_id,
+    &ptcl_context_receiver_, car_trajectory_CB, &car_trajectory_data_, protect_id,
     &trajectory_receiver_context_);
 
   if (installSuccess) {
@@ -308,8 +336,9 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     trajectory_point.longitudinal_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLon);
     trajectory_point.lateral_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLat);
     trajectory_point.acceleration_mps2 = PTCL_toAccel(car_trajectory_element.accelLon);
-    trajectory_point.front_wheel_angle_rad = PTCL_toPTCLAngleWrapped(car_trajectory_element.angleSteeredWheels);
-    trajectory_point.rear_wheel_angle_rad = 0; //think later
+    trajectory_point.front_wheel_angle_rad =
+      PTCL_toPTCLAngleWrapped(car_trajectory_element.angleSteeredWheels);
+    trajectory_point.rear_wheel_angle_rad = 0;  // think later
   }
 
   return trajectory;

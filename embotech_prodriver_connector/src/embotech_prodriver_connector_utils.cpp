@@ -188,7 +188,6 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   };
 
   const auto mod_angle = [](const auto value) { return std::fmod(value + M_PI, 2 * M_PI) - M_PI; };
-
   const auto x = p_target.x() - 500000;
   const auto y = p_target.y();
 

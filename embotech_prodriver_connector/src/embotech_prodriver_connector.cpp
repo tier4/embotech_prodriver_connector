@@ -235,6 +235,11 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state()
   const auto mgrs_pos = current_kinematics_->pose.pose.position;
   const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
+  const auto mgrs_point_re = convert_to_MGRS_Point(ptcl_pos);
+  std::cerr << "mgrs_point:x" << mgrs_pos.x << "mgrs_point:y" << mgrs_pos.y
+            << std::endl;
+  std::cerr << "mgrs_point_re:x" << mgrs_point_re.x() << "mgrs_point_re:y" << mgrs_point_re.y()
+            << std::endl;
   // TODO: How to calculate yaw? Should we use it directly, or calculate as below?
   // const PTCL_Coordinate position_y_PTCL = std::atan2(position_y_PTCL, position_x_PTCL);
 

@@ -55,7 +55,8 @@ const PTCL_UdpIdAddressPair id_address_pairs[] = {
   {motion_planner_id, ip_local_host, motion_planner_port},
   {protect_id, ip_local_host, protect_port},
   {developer_ui_id, ip_local_host, developer_ui_port},
-  {autoware_id, ip_local_host, autoware_port}};
+  {autoware_id, ip_local_host, autoware_port},
+  {trajectory_receiver_id, ip_local_host, trajectory_receiver_port}};
 
 const uint8_t num_destinations_state = 4U;
 const PTCL_Id destinations_car_state[] = {
@@ -82,11 +83,11 @@ static void car_trajectory_CB(
   const PTCL_CarTrajectory * msg, const PTCL_MsgInfoHandle msgInfoHandle, void * userData)
 {
   (void)msgInfoHandle;
-  CarTrajectoryData * car_trajectory_data = (CarTrajectoryData *)userData;
+  CarTrajectoryData * car_trajectory_data_ = (CarTrajectoryData *)userData;
   // Copy received message msg to location provided by the user in *userData
-  memcpy(&(car_trajectory_data->car_trajectory), msg, sizeof(CarTrajectoryData));
+  memcpy(&(car_trajectory_data_->car_trajectory), msg, sizeof(PTCL_CarTrajectory));
   // Set flag
-  car_trajectory_data->msg_received = true;
+  car_trajectory_data_->msg_received = true;
 }
 
 namespace embotech_prodriver_connector
@@ -150,8 +151,6 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   //  - Log threshold of console determined by environment variable
   PTCL_setLogPrefix("EX");
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
-  memset(&car_trajectory_data_, 0, sizeof(CarTrajectoryData));
-
   setup_PTCL();
   setup_CB();
 }
@@ -159,10 +158,11 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
 void EmbotechProDriverConnector::on_timer()
 {
   if (!car_trajectory_data_.msg_received) {
+    printf("car_trajectory is not received yet \n");
     return;
   }
-  // current_trajectory_ = to_autoware_trajectory(car_trajectory_);
-  // pub_trajectory_->publish(current_trajectory_);
+  current_trajectory_ = to_autoware_trajectory(car_trajectory_data_.car_trajectory);
+  pub_trajectory_->publish(current_trajectory_);
 }
 
 void EmbotechProDriverConnector::setup_CB()
@@ -323,10 +323,11 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     PTCL_toTime(ptcl_car_trajectory.header.measurementTime);  // uint64_t -> double
   trajectory.header.stamp = rclcpp::Time(measured_time_sec);
   trajectory.header.frame_id = "map";
-  for (size_t i = 0; i < ptcl_car_trajectory.numElements; i++) {
+
+  for (size_t i = 0; i < unsigned(ptcl_car_trajectory.numElements); ++i) {
     const auto & car_trajectory_element = ptcl_car_trajectory.elements[i];
     // const auto & element_position = ptcl_car_trajectory.elements[i].pose.position;
-    auto & trajectory_point = trajectory.points.at(i);
+    TrajectoryPoint trajectory_point;
     const auto element_pos = convert_to_MGRS_Point(car_trajectory_element.pose.position);
     trajectory_point.time_from_start = rclcpp::Duration::from_nanoseconds(
       PTCL_toTimeOffset(car_trajectory_element.timeOffset) * 10e6);
@@ -339,6 +340,7 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     trajectory_point.front_wheel_angle_rad =
       PTCL_toPTCLAngleWrapped(car_trajectory_element.angleSteeredWheels);
     trajectory_point.rear_wheel_angle_rad = 0;  // think later
+    trajectory.points.push_back(trajectory_point);
   }
 
   return trajectory;

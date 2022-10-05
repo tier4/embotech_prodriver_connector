@@ -236,7 +236,7 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
                    p_cos;
 
   longitude = mod_angle(longitude + zone_number_to_central_longitude(zone_number) * LATLON_TO_RAD);
-  return {latitude, longitude, 0};
+  return {latitude * 180 / M_PI, longitude * 180 / M_PI, 0};
 }
 
 PredictedPath get_highest_prob_path(const PredictedObjectKinematics object)

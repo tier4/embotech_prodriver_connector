@@ -158,7 +158,6 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
 void EmbotechProDriverConnector::on_timer()
 {
   if (!car_trajectory_data_.msg_received) {
-    printf("car_trajectory is not received yet \n");
     return;
   }
   current_trajectory_ = to_autoware_trajectory(car_trajectory_data_.car_trajectory);
@@ -448,7 +447,7 @@ MGRSPoint EmbotechProDriverConnector::convert_to_MGRS_Point(const PTCL_Position 
   utm_point.y() = PTCL_toCoordinate(ptcl_pos.y) + origin_prodriver_utm_.y();
   utm_point.z() = 0;
 
-  const lanelet::GPSPoint gps_point =
+  const auto gps_point =
     convert_UTM_to_LatLon_coordinate({utm_point.x(), utm_point.y(), utm_point.z()});
 
   const auto mgrs_point = mgrs_projector_.forward(gps_point);

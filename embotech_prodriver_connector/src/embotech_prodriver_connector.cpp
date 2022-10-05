@@ -450,8 +450,8 @@ PTCL_Position EmbotechProDriverConnector::convert_to_PTCL_Point(const MGRSPoint 
   ptcl_pos.x = PTCL_toPTCLCoordinate(utm_point.x() - origin_prodriver_utm_.x());
   ptcl_pos.y = PTCL_toPTCLCoordinate(utm_point.y() - origin_prodriver_utm_.y());
 
-  UTMPoint utm_point_re;
-  utm_point_re.x() = PTCL_toCoordinate(ptcl_pos.x) + origin_prodriver_utm_.x();
+  // UTMPoint utm_point_re;
+  // utm_point_re.x() = PTCL_toCoordinate(ptcl_pos.x) + origin_prodriver_utm_.x();
   // utm_point_re.y() = PTCL_toCoordinate(ptcl_pos.y) + origin_prodriver_utm_.y();
   // std::cerr << "utm_point:x" << utm_point.x() << "utm_point:y" << utm_point.y() << std::endl;
   // std::cerr << "utm_point_re:x" << utm_point_re.x() << "utm_point_re:y" << utm_point_re.y() << std::endl;

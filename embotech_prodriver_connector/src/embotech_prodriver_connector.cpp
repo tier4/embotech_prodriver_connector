@@ -145,7 +145,7 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   // prodriver_origin_latlon_.lon = 137.83333262993906;
 
   // calculate GPSPoint
-  // mgrs_projector_.setMGRSCode(mgrs_code_);
+  mgrs_projector_.setMGRSCode(mgrs_code_);
   origin_prodriver_utm_ = convert_LatLon_to_UTM_coordinate(origin_prodriver_latlon_);
 
   // Initialize PTCL logging
@@ -235,14 +235,14 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state()
 {
   const auto mgrs_pos = current_kinematics_->pose.pose.position;
 
-  std::cerr << "\n\n\n\n\nmgrs_pos:x" << mgrs_pos.x << "mgrs_pos:y" << mgrs_pos.y << std::endl;
+  std::cerr << "\n\n\n\n\nmgrs_pos: " << mgrs_pos.x  << mgrs_pos.y << std::endl;
   // std::cerr << "projected_grid_1 " << mgrs_projector_.mgrs_code_ << std::endl;
-    
 
   [[maybe_unused]] auto mgrs_pos_loop =
     convert_to_MGRS_Point(convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z}));
 
-  std::cerr << "mgrs_pos_loop:x" << mgrs_pos_loop.x() << "mgrs_pos_loop:y" << mgrs_pos_loop.y() << "\n\n\n\n\n"
+  std::cerr << "mgrs_pos_loop:x" << mgrs_pos_loop.x() << "mgrs_pos_loop:y" << mgrs_pos_loop.y()
+            << "\n\n\n\n\n"
             << std::endl;
 
   const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
@@ -437,22 +437,21 @@ void EmbotechProDriverConnector::send_to_PTCL(const PTCL_Route & route)
 
 PTCL_Position EmbotechProDriverConnector::convert_to_PTCL_Point(const MGRSPoint & mgrs_point)
 {
-  // TODO(K.Sugahara): return zone number
-  // std::cerr << "projected_grid_2 " << mgrs_projector_.mgrs_code_ << std::endl;
-  // std::cerr << "mgrs_projector_'s code is set before reverse function: " << mgrs_projector_.isMGRSCodeSet() << std::endl;
-  const auto gps_point = mgrs_projector_.reverse(mgrs_point,mgrs_code_);
-  std::cerr << "mgrs_code_ in convert_to_PTCL_Point " << mgrs_code_ << std::endl;
-  
-  // std::cerr << "projected_grid_3 " << mgrs_projector_.mgrs_code_ << std::endl;
 
   std::cerr << "mgrs_point " << mgrs_point.x() << " , " << mgrs_point.y() << " , " << mgrs_point.z()
-            << std::endl;
+          << std::endl;
+          
+  // TODO(K.Sugahara): return zone number
+  // std::cerr << "mgrs_projector_'s code is set before reverse function: " <<
+  // mgrs_projector_.isMGRSCodeSet() << std::endl;
+  const auto gps_point = mgrs_projector_.reverse(mgrs_point);
+  std::cerr << "mgrs_code_ in convert_to_PTCL_Point " << mgrs_code_ << std::endl;
+
+
   std::cerr << "gps_point " << gps_point.lat << " , " << gps_point.lon << " , " << gps_point.ele
             << std::endl;
 
-
   // const auto mgrs_point_re = mgrs_projector_.forward(gps_point);
-
   // std::cerr << "mgrs_point:x" << mgrs_point.x() << "mgrs_point:y" << mgrs_point.y()
   //           << std::endl;
   // std::cerr << "mgrs_point_re:x" << mgrs_point_re.x() << "mgrs_point_re:lon" << mgrs_point_re.y()
@@ -493,22 +492,23 @@ MGRSPoint EmbotechProDriverConnector::convert_to_MGRS_Point(const PTCL_Position 
   utm_point.x() = PTCL_toCoordinate(ptcl_pos.x) + origin_prodriver_utm_.x();
   utm_point.y() = PTCL_toCoordinate(ptcl_pos.y) + origin_prodriver_utm_.y();
   utm_point.z() = 0;
-
   std::cerr << "utm_point " << utm_point.x() << " , " << utm_point.y() << std::endl;
 
   const auto gps_point =
     convert_UTM_to_LatLon_coordinate({utm_point.x(), utm_point.y(), utm_point.z()});
-
   std::cerr << "gps_point " << gps_point.lat << " , " << gps_point.lon << " , " << gps_point.ele
             << std::endl;
-  // std::cerr << "mgrs_projector_'s code is set before forward function: " << mgrs_projector_.isMGRSCodeSet() << std::endl;
-  const MGRSPoint mgrs_point = mgrs_projector_.forward(gps_point);
-  // auto gps_point_loop = mgrs_projector_.reverse(mgrs_point,mgrs_code_);
-  // std::cerr << "mgrs_code_ in convert_to_MGRS_Point " << mgrs_code_ << std::endl;
 
+  // std::cerr << "mgrs_projector_'s code is set before forward function: " <<
+  // mgrs_projector_.isMGRSCodeSet() << std::endl;
+  const MGRSPoint mgrs_point = mgrs_projector_.forward(gps_point);
   std::cerr << "mgrs_point " << mgrs_point.x() << " , " << mgrs_point.y() << " , " << mgrs_point.z()
             << std::endl;
-  // std::cerr << "gps_point_loop " << gps_point_loop.lat << " , " << gps_point_loop.lon << " , " << gps_point_loop.ele
+
+  // auto gps_point_loop = mgrs_projector_.reverse(mgrs_point,mgrs_code_);
+  // std::cerr << "mgrs_code_ in convert_to_MGRS_Point " << mgrs_code_ << std::endl;
+  // std::cerr << "gps_point_loop " << gps_point_loop.lat << " , " << gps_point_loop.lon << " , " <<
+  // gps_point_loop.ele
   //         << std::endl;
 
   return mgrs_point;

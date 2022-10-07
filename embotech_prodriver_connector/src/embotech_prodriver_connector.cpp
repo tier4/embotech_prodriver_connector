@@ -162,7 +162,12 @@ void EmbotechProDriverConnector::on_timer()
     return;
   }
   current_trajectory_ = to_autoware_trajectory(car_trajectory_data_.car_trajectory);
-  pub_trajectory_->publish(current_trajectory_);
+
+  if (!current_trajectory_.points.empty()) {
+    pub_trajectory_->publish(current_trajectory_);
+  } else {
+    RCLCPP_ERROR(get_logger(), "embotech trajectory is empty. not published.");
+  }
 }
 
 void EmbotechProDriverConnector::setup_CB()
@@ -339,6 +344,16 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     trajectory_point.front_wheel_angle_rad =
       PTCL_toPTCLAngleWrapped(car_trajectory_element.angleSteeredWheels);
     trajectory_point.rear_wheel_angle_rad = 0;  // think later
+
+    // to avoid Autoware error.
+    if (!trajectory.points.empty()) {
+      const auto & p = trajectory_point.pose.position;
+      const auto & p_pre = trajectory.points.back().pose.position;
+      if (p.x == p_pre.x && p.y == p_pre.y) {
+        RCLCPP_ERROR(get_logger(), "same position is detected. ignore");
+        continue;
+      }
+    }
     trajectory.points.push_back(trajectory_point);
   }
 

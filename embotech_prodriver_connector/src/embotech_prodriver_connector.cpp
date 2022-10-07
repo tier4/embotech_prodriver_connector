@@ -332,6 +332,7 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     trajectory_point.pose.position.x = element_pos.x();
     trajectory_point.pose.position.y = element_pos.y();
     trajectory_point.pose.position.z = element_pos.z();
+    trajectory_point.pose.orientation = tier4_autoware_utils::createQuaternionFromRPY(0.0, 0.0, PTCL_toAngleWrapped(car_trajectory_element.pose.heading));
     trajectory_point.longitudinal_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLon);
     trajectory_point.lateral_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLat);
     trajectory_point.acceleration_mps2 = PTCL_toAccel(car_trajectory_element.accelLon);
@@ -364,7 +365,7 @@ PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped & goal)
   ptcl_route.goalStates[0].pose.position.y = ptcl_pos.y;
   ptcl_route.goalStates[0].pose.heading = PTCL_toPTCLAngleWrapped(yaw_pose);
   // desired steered wheels angle amd velocity at the goal state is basically 0
-  ptcl_route.goalStates[0].angleSteeredWheels = PTCL_toPTCLAngleWrapped(yaw_pose);
+  ptcl_route.goalStates[0].angleSteeredWheels = 0;
   ptcl_route.goalStates[0].velLon = 0;
   ptcl_route.goalStates[0].duration = 0;  // rest time after reaching goal
 

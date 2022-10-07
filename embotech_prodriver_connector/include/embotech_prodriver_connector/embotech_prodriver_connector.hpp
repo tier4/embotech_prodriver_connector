@@ -24,9 +24,10 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 
+#include "tier4_autoware_utils/geometry/geometry.hpp"
+
 // Autoware
 #include "lanelet2_extension/projection/mgrs_projector.hpp"
-
 #include "autoware_auto_perception_msgs/msg/predicted_objects.hpp"
 #include "autoware_auto_planning_msgs/msg/trajectory.hpp"
 #include "autoware_auto_vehicle_msgs/msg/steering_report.hpp"

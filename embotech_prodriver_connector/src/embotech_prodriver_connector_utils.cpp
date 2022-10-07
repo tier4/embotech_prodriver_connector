@@ -63,21 +63,21 @@ UTMPoint convert_LatLon_to_UTM_coordinate(const lanelet::GPSPoint & p_target)
   // https://github.com/Turbo87/utm/blob/master/utm/conversion.py#L190-L286
 
   // parameters
-  constexpr auto K0 = 0.9996;
+  const auto K0 = 0.9996;
 
-  constexpr auto E = 0.00669438;
-  constexpr auto E2 = E * E;
-  constexpr auto E3 = E2 * E;
-  constexpr auto E_P2 = E / (1 - E);
+  const auto E = 0.00669438;
+  const auto E2 = E * E;
+  const auto E3 = E2 * E;
+  const auto E_P2 = E / (1 - E);
 
-  constexpr auto M1 = (1 - E / 4 - 3 * E2 / 64 - 5 * E3 / 256);
-  constexpr auto M2 = (3 * E / 8 + 3 * E2 / 32 + 45 * E3 / 1024);
-  constexpr auto M3 = (15 * E2 / 256 + 45 * E3 / 1024);
-  constexpr auto M4 = (35 * E3 / 3072);
+  const auto M1 = (1 - E / 4 - 3 * E2 / 64 - 5 * E3 / 256);
+  const auto M2 = (3 * E / 8 + 3 * E2 / 32 + 45 * E3 / 1024);
+  const auto M3 = (15 * E2 / 256 + 45 * E3 / 1024);
+  const auto M4 = (35 * E3 / 3072);
 
-  constexpr auto R = 6378137;
+  const auto R = 6378137;
 
-  constexpr double LATLON_TO_RAD = M_PI / 180.0;
+  const double LATLON_TO_RAD = M_PI / 180.0;
 
   const auto zone_number_to_central_longitude = [](const auto zone_number) {
     return (zone_number - 1) * 6 - 180 + 3;
@@ -156,14 +156,14 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   // TODO(K.Sugahara): this is from the Turbo87/UTM repository. Take right way to manage this code.
   // https://github.com/Turbo87/utm/blob/master/utm/conversion.py#L80-L187
 
-  // parameters
-  constexpr auto zone_number = 54;
-  constexpr auto K0 = 0.9996;
+  std::cerr << " p_target " << p_target.x() << " , " << p_target.y() << std::endl;
 
-  constexpr auto E = 0.00669438;
-  constexpr auto E2 = E * E;
-  constexpr auto E3 = E2 * E;
-  constexpr auto E_P2 = E / (1 - E);
+  // parameters
+  const auto K0 = 0.9996;
+  const auto E = 0.00669438;
+  const auto E2 = E * E;
+  const auto E3 = E2 * E;
+  const auto E_P2 = E / (1 - E);
 
   const auto SQRT_E = std::sqrt(1 - E);
   const auto _E = (1 - SQRT_E) / (1 + SQRT_E);
@@ -171,17 +171,38 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   const auto _E3 = _E2 * _E;
   const auto _E4 = _E3 * _E;
   const auto _E5 = _E4 * _E;
+  
+  const auto M1 = (1 - E / 4 - 3 * E2 / 64 - 5 * E3 / 256);
 
-  constexpr auto M1 = (1 - E / 4 - 3 * E2 / 64 - 5 * E3 / 256);
+  std::cerr << " K0 " << K0 << std::endl;
+  std::cerr << " E " << E << std::endl;
+  std::cerr << " E2 " << E2 << std::endl;
+  std::cerr << " E3 " << E3 << std::endl;
+  std::cerr << " E_P2 " << E_P2 << std::endl;
+  std::cerr << " SQRT_E " << SQRT_E << std::endl;
+  std::cerr << " _E " << _E << std::endl;
+  std::cerr << " _E2 " << _E2 << std::endl;
+  std::cerr << " _E3 " << _E3 << std::endl;
+  std::cerr << " _E4 " << _E4 << std::endl;
+  std::cerr << " _E5 " << _E5 << std::endl;
+  std::cerr << " M1 " << M1 << std::endl;
 
+
+
+  // const auto P2 = (3 / 2 * _E - 27 / 32 * _E3 + 269 / 512 * _E5);
   const auto P2 = (3 / 2 * _E - 27 / 32 * _E3 + 269 / 512 * _E5);
   const auto P3 = (21 / 16 * _E2 - 55 / 32 * _E4);
   const auto P4 = (151 / 96 * _E3 - 417 / 128 * _E5);
   const auto P5 = (1097 / 512 * _E4);
 
-  constexpr auto R = 6378137;
+  std::cerr << " P2 " << P2 << std::endl;
+  std::cerr << " P3 " << P3 << std::endl;
+  std::cerr << " P4 " << P4 << std::endl;
+  std::cerr << " P5 " << P5 << std::endl;
 
-  constexpr double LATLON_TO_RAD = M_PI / 180.0;
+  const auto R = 6378137;
+
+  const double LATLON_TO_RAD = M_PI / 180.0;
 
   const auto zone_number_to_central_longitude = [](const auto zone_number) {
     return (zone_number - 1) * 6 - 180 + 3;
@@ -189,17 +210,21 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
 
   const auto mod_angle = [](const auto value) { return std::fmod(value + M_PI, 2 * M_PI) - M_PI; };
   const auto x = p_target.x() - 500000;
-  const auto y = p_target.y();
+  auto y = p_target.y();
 
   // if !northern:
-  //   y -= 10000000
+  // y -= 10000000;
 
   const auto m = y / K0;
   const auto mu = m / (R * M1);
 
+  std::cerr << " mu " << mu << std::endl;
+
   const auto p_rad =
     (mu + P2 * std::sin(2 * mu) + P3 * std::sin(4 * mu) + P4 * std::sin(6 * mu) +
      P5 * std::sin(8 * mu));
+
+  std::cerr << " p_rad " << p_rad << std::endl;
 
   const auto p_sin = std::sin(p_rad);
   const auto p_sin2 = p_sin * p_sin;
@@ -213,11 +238,18 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   const auto ep_sin = 1 - E * p_sin2;
   const auto ep_sin_sqrt = std::sqrt(1 - E * p_sin2);
 
+  std::cerr << " ep_sin_sqrt " << ep_sin_sqrt << std::endl;
+
   const auto n = R / ep_sin_sqrt;
   const auto r = (1 - E) / ep_sin;
 
+  std::cerr << " n " << n << std::endl;
+  std::cerr << " r " << r << std::endl;
+
   const auto c = E_P2 * p_cos * p_cos;
   const auto c2 = c * c;
+  std::cerr << " c " << c << std::endl;
+  std::cerr << " c2 " << c2 << std::endl;
 
   const auto d = x / (n * K0);
   const auto d2 = d * d;
@@ -225,6 +257,11 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   const auto d4 = d3 * d;
   const auto d5 = d4 * d;
   const auto d6 = d5 * d;
+
+  const int zone_number = 54;
+
+  std::cerr << "d " << d << " , " << d2 << " , " << d3 << " , " << d4 << " , " << d5 << " , " << d6
+            << std::endl;
 
   const auto latitude =
     (p_rad - (p_tan / r) * (d2 / 2 - d4 / 24 * (5 + 3 * p_tan2 + 10 * c - 4 * c2 - 9 * E_P2)) +
@@ -235,6 +272,8 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
                    p_cos;
 
   longitude = mod_angle(longitude + zone_number_to_central_longitude(zone_number) * LATLON_TO_RAD);
+
+  std::cerr << " latlon " << latitude * 180 / M_PI << " , " << longitude * 180 / M_PI << std::endl;
   return {latitude * 180 / M_PI, longitude * 180 / M_PI, 0};
 }
 
@@ -309,7 +348,7 @@ Polygon2d convertCylindricalObjectToGeometryPolygon(
   const double obj_x = current_pose.position.x;
   const double obj_y = current_pose.position.y;
 
-  constexpr int N = 20;
+  const int N = 20;
   const double r = obj_shape.dimensions.x / 2;
   for (int i = 0; i < N; ++i) {
     object_polygon.outer().emplace_back(

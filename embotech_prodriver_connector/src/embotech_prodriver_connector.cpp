@@ -158,7 +158,7 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
 
 void EmbotechProDriverConnector::on_timer()
 {
-  std::cerr << "\n\n\n\n\n " << ::endl;
+  std::cerr << "\n\n\n\n\n " << std::endl;
   convert_UTM_to_LatLon_coordinate({381541, 3950310, 0});
   std::cerr << "\n\n\n\n\n " << std::endl;
   if (!car_trajectory_data_.msg_received) {

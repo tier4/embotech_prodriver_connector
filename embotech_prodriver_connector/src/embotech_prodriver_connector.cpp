@@ -100,7 +100,7 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   using rclcpp::QoS;
   using std::placeholders::_1;
 
-  pub_trajectory_ = create_publisher<Trajectory>("/prodriver/trajectory", 1);
+  pub_trajectory_ = create_publisher<Trajectory>("/planning/scenario_planning/trajectory", 1);
 
   sub_kinematic_state_ = create_subscription<Odometry>(
     "/localization/kinematic_state", QoS{1},

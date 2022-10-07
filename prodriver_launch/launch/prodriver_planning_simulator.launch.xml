@@ -22,6 +22,8 @@
   <arg name="vehicle_simulation" default="true" description="use vehicle simulation"/>
   <!-- Pro driver connctor -->
   <arg name="prodriver_connector" default="true" description="use prodriver connector"/>
+  <!-- Pro driver connctor -->
+  <arg name="launch_planning" default="false" description="launch planning component"/>
 
 
   <group scoped="false">
@@ -37,6 +39,7 @@
       <arg name="map_path" value="$(var map_path)"/>
       <arg name="vehicle_model" value="$(var vehicle_model)"/>
       <arg name="sensor_model" value="$(var sensor_model)"/>
+      <arg name="launch_planning" value="$(var launch_planning)"/>
       <!-- Modules to be launched -->
       <arg name="launch_sensing" value="false"/>
       <arg name="launch_localization" value="false"/>
@@ -71,6 +74,7 @@
       <arg name="launch_dummy_vehicle" value="$(var launch_dummy_vehicle)"/>
       <arg name="launch_dummy_localization" value="$(var launch_dummy_localization)"/>
       <arg name="launch_prodriver_connector" value="$(var prodriver_connector)"/>
+      <arg name="launch_planning" value="$(var launch_planning)"/>
       <arg name="perception/enable_detection_failure" value="$(var perception/enable_detection_failure)"/>
       <arg name="perception/enable_object_recognition" value="$(var perception/enable_object_recognition)"/>
       <arg name="sensing/visible_range" value="$(var sensing/visible_range)"/>

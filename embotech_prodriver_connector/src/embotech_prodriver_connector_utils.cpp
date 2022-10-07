@@ -156,8 +156,6 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   // TODO(K.Sugahara): this is from the Turbo87/UTM repository. Take right way to manage this code.
   // https://github.com/Turbo87/utm/blob/master/utm/conversion.py#L80-L187
 
-  std::cerr << " p_target " << p_target.x() << " , " << p_target.y() << std::endl;
-
   // parameters
   const double K0 = 0.9996;
   const double E = 0.00669438;
@@ -174,31 +172,10 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   
   const double M1 = (1 - E / 4 - 3 * E2 / 64 - 5 * E3 / 256);
 
-  std::cerr << " K0 " << K0 << std::endl;
-  std::cerr << " E " << E << std::endl;
-  std::cerr << " E2 " << E2 << std::endl;
-  std::cerr << " E3 " << E3 << std::endl;
-  std::cerr << " E_P2 " << E_P2 << std::endl;
-  std::cerr << " SQRT_E " << SQRT_E << std::endl;
-  std::cerr << " _E " << _E << std::endl;
-  std::cerr << " _E2 " << _E2 << std::endl;
-  std::cerr << " _E3 " << _E3 << std::endl;
-  std::cerr << " _E4 " << _E4 << std::endl;
-  std::cerr << " _E5 " << _E5 << std::endl;
-  std::cerr << " M1 " << M1 << std::endl;
-
-
-
-  // const auto P2 = (3 / 2 * _E - 27 / 32 * _E3 + 269 / 512 * _E5);
   const double P2 = (3.0 / 2.0 * _E - 27.0 / 32.0 * _E3 + 269.0 / 512.0 * _E5);
   const double P3 = (21.0 / 16.0 * _E2 - 55.0 / 32.0 * _E4);
   const double P4 = (151.0 / 96.0 * _E3 - 417.0 / 128.0 * _E5);
   const double P5 = (1097.0 / 512.0 * _E4);
-
-  std::cerr << " P2 " << P2 << std::endl;
-  std::cerr << " P3 " << P3 << std::endl;
-  std::cerr << " P4 " << P4 << std::endl;
-  std::cerr << " P5 " << P5 << std::endl;
 
   const auto R = 6378137;
 
@@ -212,21 +189,16 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   const auto x = p_target.x() - 500000;
   const auto y = p_target.y();
 
-  std::cerr << " x " << x << std::endl;
-  std::cerr << " y " << y << std::endl;
   // if !northern:
   // y -= 10000000;
 
   const auto m = y / K0;
   const auto mu = m / (R * M1);
 
-  std::cerr << " mu " << mu << std::endl;
 
   const auto p_rad =
     (mu + P2 * std::sin(2 * mu) + P3 * std::sin(4 * mu) + P4 * std::sin(6 * mu) +
      P5 * std::sin(8 * mu));
-
-  std::cerr << " p_rad " << p_rad << std::endl;
 
   const auto p_sin = std::sin(p_rad);
   const auto p_sin2 = p_sin * p_sin;
@@ -240,18 +212,11 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
   const auto ep_sin = 1 - E * p_sin2;
   const auto ep_sin_sqrt = std::sqrt(1 - E * p_sin2);
 
-  std::cerr << " ep_sin_sqrt " << ep_sin_sqrt << std::endl;
-
   const auto n = R / ep_sin_sqrt;
   const auto r = (1 - E) / ep_sin;
 
-  std::cerr << " n " << n << std::endl;
-  std::cerr << " r " << r << std::endl;
-
   const auto c = E_P2 * p_cos * p_cos;
   const auto c2 = c * c;
-  std::cerr << " c " << c << std::endl;
-  std::cerr << " c2 " << c2 << std::endl;
 
   const auto d = x / (n * K0);
   const auto d2 = d * d;
@@ -262,20 +227,14 @@ lanelet::GPSPoint convert_UTM_to_LatLon_coordinate(const UTMPoint & p_target)
 
   const int zone_number = 54;
 
-  std::cerr << "d " << d << " , " << d2 << " , " << d3 << " , " << d4 << " , " << d5 << " , " << d6
-            << std::endl;
 
   const auto latitude =
     (p_rad - (p_tan / r) * (d2 / 2 - d4 / 24 * (5 + 3 * p_tan2 + 10 * c - 4 * c2 - 9 * E_P2)) +
      d6 / 720 * (61 + 90 * p_tan2 + 298 * c + 45 * p_tan4 - 252 * E_P2 - 3 * c2));
-  std::cerr << " latitude " << latitude <<  std::endl;
   auto longitude = (d - d3 / 6 * (1 + 2 * p_tan2 + c) +
                     d5 / 120 * (5 - 2 * c + 28 * p_tan2 - 3 * c2 + 8 * E_P2 + 24 * p_tan4)) /
                    p_cos;
-  std::cerr << " longitude " << longitude <<  std::endl;
   longitude = mod_angle(longitude + zone_number_to_central_longitude(zone_number) * LATLON_TO_RAD);
-  std::cerr << " longitude " << longitude <<  std::endl;
-  // std::cerr << " latlon " << latitude * 180 / M_PI << " , " << longitude * 180 / M_PI << std::endl;
   return {latitude * 180 / M_PI, longitude * 180 / M_PI, 0};
 }
 

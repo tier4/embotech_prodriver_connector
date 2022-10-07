@@ -327,7 +327,9 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
   trajectory.header.stamp = rclcpp::Time(measured_time_sec);
   trajectory.header.frame_id = "map";
 
-  for (size_t i = 0; i < unsigned(ptcl_car_trajectory.numElements); ++i) {
+  constexpr size_t start_idx = 1;  // to ignore front point since it has 0 velocity
+
+  for (size_t i = start_idx; i < unsigned(ptcl_car_trajectory.numElements); ++i) {
     const auto & car_trajectory_element = ptcl_car_trajectory.elements[i];
     // const auto & element_position = ptcl_car_trajectory.elements[i].pose.position;
     TrajectoryPoint trajectory_point;
@@ -350,7 +352,6 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
       const auto & p = trajectory_point.pose.position;
       const auto & p_pre = trajectory.points.back().pose.position;
       if (p.x == p_pre.x && p.y == p_pre.y) {
-        RCLCPP_ERROR(get_logger(), "same position is detected. ignore");
         continue;
       }
     }

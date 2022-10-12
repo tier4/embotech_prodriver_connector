@@ -281,7 +281,6 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
       "perception object num is greater than maximum threshold.");  // TODO!!!
   }
   ptcl_frame.numObjects = object.objects.size();
-
   // for each predicted object
   for (size_t i = 0; i < object.objects.size(); ++i) {
     const auto & obj = object.objects.at(i);
@@ -291,20 +290,20 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     ptcl_object.type = to_PTCL_object_type(classification);
     ptcl_object.confidenceType = static_cast<uint8_t>(255 * (1.0f - classification.probability));
     ptcl_object.properties = 0;  // immobile(1), yielding(2), or ego-vehicle(4).
-    ptcl_object.numInstances = obj.kinematics.predicted_paths.size();
-    if (obj.kinematics.predicted_paths.size() >= PTCL_PERCEPTION_OBJECT_NUM_INSTANCES_MAX) {
+    const auto predicted_path = get_highest_prob_path(obj.kinematics);
+    ptcl_object.numInstances = static_cast<int8_t>(predicted_path.path.size());
+    if (
+      obj.kinematics.predicted_paths.at(i).path.size() >=
+      PTCL_PERCEPTION_OBJECT_NUM_INSTANCES_MAX) {
       throw std::runtime_error("predicted_paths size is greater than maximum threshold.");  // TODO
     }
-
-    const auto predicted_path = get_highest_prob_path(obj.kinematics);
-
     // for each predicted path point
     int16_t time_offset = 0;
     const auto dt_ms =
       static_cast<int16_t>(rclcpp::Duration(predicted_path.time_step).nanoseconds() * 10e-6);
     for (size_t j = 0; j < predicted_path.path.size(); ++j) {
       ptcl_object.instances[j].timeOffset = time_offset;
-      ptcl_object.instances[j].shape = to_PTCL_polytope(obj.shape, predicted_path.path.at(i));
+      ptcl_object.instances[j].shape = to_PTCL_polytope(obj.shape, predicted_path.path.at(j));
       time_offset += dt_ms;  // int16_t [ms] (-32s ~ 32s)
     }
 
@@ -339,7 +338,8 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     trajectory_point.pose.position.x = element_pos.x();
     trajectory_point.pose.position.y = element_pos.y();
     trajectory_point.pose.position.z = element_pos.z();
-    trajectory_point.pose.orientation = tier4_autoware_utils::createQuaternionFromRPY(0.0, 0.0, PTCL_toAngleWrapped(car_trajectory_element.pose.heading));
+    trajectory_point.pose.orientation = tier4_autoware_utils::createQuaternionFromRPY(
+      0.0, 0.0, PTCL_toAngleWrapped(car_trajectory_element.pose.heading));
     trajectory_point.longitudinal_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLon);
     trajectory_point.lateral_velocity_mps = PTCL_toSpeed(car_trajectory_element.velLat);
     trajectory_point.acceleration_mps2 = PTCL_toAccel(car_trajectory_element.accelLon);
@@ -456,7 +456,6 @@ PTCL_Position EmbotechProDriverConnector::convert_to_PTCL_Point(const MGRSPoint 
 
 MGRSPoint EmbotechProDriverConnector::convert_to_MGRS_Point(const PTCL_Position & ptcl_pos)
 {
-
   // convert to global coordinate (double)
   UTMPoint utm_point;
   utm_point.x() = PTCL_toCoordinate(ptcl_pos.x) + origin_prodriver_utm_.x();

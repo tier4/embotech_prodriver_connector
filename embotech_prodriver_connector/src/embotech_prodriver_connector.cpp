@@ -322,9 +322,9 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
   const PTCL_CarTrajectory & ptcl_car_trajectory)
 {
   Trajectory trajectory;
-  float64_t measured_time_sec =
-    PTCL_toTime(ptcl_car_trajectory.header.measurementTime);  // uint64_t -> double
-  trajectory.header.stamp = rclcpp::Time(measured_time_sec);
+  float64_t time_reference_sec =
+    PTCL_toTime(ptcl_car_trajectory.header.timeReference);  // uint64_t -> double
+  trajectory.header.stamp = rclcpp::Time(time_reference_sec);
   trajectory.header.frame_id = "map";
 
   constexpr size_t start_idx = 1;  // to ignore front point since it has 0 velocity

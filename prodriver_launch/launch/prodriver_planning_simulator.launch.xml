@@ -23,7 +23,7 @@
   <!-- Pro driver connctor -->
   <arg name="prodriver_connector" default="true" description="use prodriver connector"/>
   <!-- Launch planning modules -->
-  <arg name="launch_planning" default="false" description="launch planning component"/>
+  <arg name="launch_planning" default="true" description="launch planning component"/>
 
   <!-- Global parameters -->
   <!-- Do not add "group" in order to propagate global parameters -->

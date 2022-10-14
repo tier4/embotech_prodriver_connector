@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
-
+#include "embo_time.h"
 #include "embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp"
 
 #include <tf2/LinearMath/Quaternion.h>
@@ -243,12 +243,9 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
       convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
   PTCL_CarState cat_state;
-  const double measured_time_sec =
-      rclcpp::Time(current_kinematics_->header.stamp).seconds();
-  cat_state.header.measurementTime =
-      PTCL_toPTCLTime(measured_time_sec); // double -> uint64_t
-  cat_state.header.timeReference =
-      PTCL_toPTCLTime(measured_time_sec); // double -> uint64
+  Embo_Time measured_time = Embo_Time_getCurrentTime();
+  cat_state.header.measurementTime = measured_time; // double -> uint64_t
+  cat_state.header.timeReference = measured_time;   // double -> uint64
   cat_state.header.vehicleId = 1;
   cat_state.pose.position.x = ptcl_pos.x;
   cat_state.pose.position.y = ptcl_pos.y;
@@ -276,13 +273,12 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
 PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     const PredictedObjects &object) {
   PTCL_PerceptionFrame ptcl_frame;
-  const double measured_time_sec = rclcpp::Time(object.header.stamp).seconds();
-  ptcl_frame.header.measurementTime =
-      PTCL_toPTCLTime(measured_time_sec); // double -> uint64_t
-  ptcl_frame.header.oemId = 0;            // TODO: think later
-  ptcl_frame.header.mapId = 0;            // TODO: think later
-  ptcl_frame.header.mapCrc = 0;           // TODO: think later
-  ptcl_frame.header.vehicleId = 1U;       // TODO: think later
+  Embo_Time measured_time = Embo_Time_getCurrentTime();
+  ptcl_frame.header.measurementTime = measured_time; // double -> uint64_t
+  ptcl_frame.header.oemId = 0;                       // TODO: think later
+  ptcl_frame.header.mapId = 0;                       // TODO: think later
+  ptcl_frame.header.mapCrc = 0;                      // TODO: think later
+  ptcl_frame.header.vehicleId = 1U;                  // TODO: think later
 
   if (object.objects.size() >= PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX) {
     throw std::runtime_error(
@@ -309,7 +305,7 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     // for each predicted path point
     int16_t time_offset = 0;
     const auto dt_ms = static_cast<int16_t>(
-        rclcpp::Duration(predicted_path.time_step).nanoseconds() * 10e-6);
+        rclcpp::Duration(predicted_path.time_step).nanoseconds() * 10e-7);
     for (size_t j = 0; j < predicted_path.path.size(); ++j) {
       ptcl_object.instances[j].timeOffset = time_offset;
       ptcl_object.instances[j].shape =

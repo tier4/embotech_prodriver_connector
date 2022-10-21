@@ -131,20 +131,20 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
 
   // origin of lat/lon coordinates in PTCL are map
   //  odaiba
-  //  prodriver_origin_latlon_.lat = 35.61458614188;
-  //  prodriver_origin_latlon_.lon = 139.76947350053;
+  //  origin_prodriver_latlon_.lat = 35.61458614188;
+  //  origin_prodriver_latlon_.lon = 139.76947350053;
 
   // virtual_map
   origin_prodriver_latlon_.lat = 35.68386482855;
   origin_prodriver_latlon_.lon = 139.68506426425;
 
   // ryuyo_ci1
-  // prodriver_origin_latlon_.lat = 34.66441053284202;
-  // prodriver_origin_latlon_.lon = 137.83339405223919;
+  // origin_prodriver_latlon_.lat = 34.66441053284202;
+  // origin_prodriver_latlon_.lon = 137.83339405223919;
 
   // ryuyo_ci2
-  // prodriver_origin_latlon_.lat = 34.66444508923468;
-  // prodriver_origin_latlon_.lon = 137.83333262993906;
+  // origin_prodriver_latlon_.lat = 34.66444508923468;
+  // origin_prodriver_latlon_.lon = 137.83333262993906;
 
   // calculate GPSPoint
   mgrs_projector_.setMGRSCode(mgrs_code_);

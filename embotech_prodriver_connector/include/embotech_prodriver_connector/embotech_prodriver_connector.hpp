@@ -36,6 +36,7 @@
 // Pro-DRIVER
 #include "embo_time.h"
 #include "lanelet2_core/primitives/GPSPoint.h"
+#include "lanelet2_projection/UTM.h"
 #include "ptcl/messages/ptcl_perception_frame.h"
 #include "ptcl/ports/ptcl_port_udp.h"
 #include "ptcl/ptcl.h"
@@ -95,11 +96,7 @@ private:
 
   // coordinates conversion
   lanelet::projection::MGRSProjector mgrs_projector_;
-  lanelet::GPSPoint origin_prodriver_latlon_;
-  UTMPoint origin_prodriver_utm_;
-
-  std::string mgrs_code_ = "54SUE";  // mgrs_code for odaiba and virtual_map
-  // std::string mgrs_code_ = "53SQU" // mgrs_code for ryuyo_ci1,2
+  lanelet::projection::UtmProjector utm_projector_{lanelet::Origin::defaultOrigin()};
 
   Odometry::ConstSharedPtr current_kinematics_;
   SteeringReport::ConstSharedPtr current_steer_;

@@ -15,7 +15,10 @@
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
 #include "embo_time.h"
 #include "embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp"
+#include "lanelet2_io/Projection.h"
 
+#include <lanelet2_projection/Mercator.h>
+#include <lanelet2_projection/UTM.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/utils.h>
 #include <unistd.h>
@@ -130,26 +133,28 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
       std::bind(&EmbotechProDriverConnector::on_timer, this));
 
   // origin of lat/lon coordinates in PTCL are map
+  lanelet::GPSPoint origin_prodriver_latlon;
   //  odaiba
-  //  origin_prodriver_latlon_.lat = 35.61458614188;
-  //  origin_prodriver_latlon_.lon = 139.76947350053;
+  origin_prodriver_latlon.lat = 35.61458614188;
+  origin_prodriver_latlon.lon = 139.76947350053;
 
   // virtual_map
-  origin_prodriver_latlon_.lat = 35.68386482855;
-  origin_prodriver_latlon_.lon = 139.68506426425;
+  // origin_prodriver_latlon.lat = 35.68386482855;
+  // origin_prodriver_latlon.lon = 139.68506426425;
 
   // ryuyo_ci1
-  // origin_prodriver_latlon_.lat = 34.66441053284202;
-  // origin_prodriver_latlon_.lon = 137.83339405223919;
+  // origin_prodriver_latlon.lat = 34.66441053284202;
+  // origin_prodriver_latlon.lon = 137.83339405223919;
 
   // ryuyo_ci2
-  // origin_prodriver_latlon_.lat = 34.66444508923468;
-  // origin_prodriver_latlon_.lon = 137.83333262993906;
+  // origin_prodriver_latlon.lat = 34.66444508923468;
+  // origin_prodriver_latlon.lon = 137.83333262993906;
 
   // calculate GPSPoint
-  mgrs_projector_.setMGRSCode(mgrs_code_);
-  origin_prodriver_utm_ =
-      convert_LatLon_to_UTM_coordinate(origin_prodriver_latlon_);
+  constexpr auto mgrs_code = "54SUE";  // mgrs_code for odaiba and virtual_map
+  // constexpr auto mgrs_code = "53SQU" // mgrs_code for ryuyo_ci1,2
+  mgrs_projector_.setMGRSCode(mgrs_code);
+  utm_projector_ = lanelet::projection::UtmProjector(lanelet::Origin(origin_prodriver_latlon));
 
   // Initialize PTCL logging
   //  - Log threshold of console determined by environment variable
@@ -460,13 +465,18 @@ EmbotechProDriverConnector::convert_to_PTCL_Point(const MGRSPoint &mgrs_point) {
   const auto lat = round(gps_point.lat * 1e8) / 1e8;
   const auto lon = round(gps_point.lon * 1e8) / 1e8;
 
-  const auto utm_point = convert_LatLon_to_UTM_coordinate({lat, lon});
+  const auto utm_point = utm_projector_.forward({lat, lon});
 
   // converted to local coordinate (int32)
   PTCL_Position ptcl_pos;
-  ptcl_pos.x = PTCL_toPTCLCoordinate(utm_point.x() - origin_prodriver_utm_.x());
-  ptcl_pos.y = PTCL_toPTCLCoordinate(utm_point.y() - origin_prodriver_utm_.y());
-
+  ptcl_pos.x = PTCL_toPTCLCoordinate(utm_point.x());
+  ptcl_pos.y = PTCL_toPTCLCoordinate(utm_point.y());
+  std::cout << "convert_to_PTCL_Point:" << std::endl;
+  std::printf("\tinput MGRS point %f, %f\n", mgrs_point.x(), mgrs_point.y());
+  std::printf("\tintermediate gps point %f, %f\n", gps_point.lat, gps_point.lon);
+  std::printf("\trounded gps point %f, %f\n", lat, lon);
+  std::printf("\tUTM point %f, %f\n", utm_point.x(), utm_point.y());
+  std::printf("\tFinal PTCL point %d, %d\n", ptcl_pos.x, ptcl_pos.y);
   return ptcl_pos;
 }
 
@@ -474,14 +484,18 @@ MGRSPoint EmbotechProDriverConnector::convert_to_MGRS_Point(
     const PTCL_Position &ptcl_pos) {
   // convert to global coordinate (double)
   UTMPoint utm_point;
-  utm_point.x() = PTCL_toCoordinate(ptcl_pos.x) + origin_prodriver_utm_.x();
-  utm_point.y() = PTCL_toCoordinate(ptcl_pos.y) + origin_prodriver_utm_.y();
+  utm_point.x() = PTCL_toCoordinate(ptcl_pos.x);
+  utm_point.y() = PTCL_toCoordinate(ptcl_pos.y);
   utm_point.z() = 0;
 
-  const auto gps_point = convert_UTM_to_LatLon_coordinate(
+  const auto gps_point = utm_projector_.reverse(
       {utm_point.x(), utm_point.y(), utm_point.z()});
 
   const MGRSPoint mgrs_point = mgrs_projector_.forward(gps_point);
+  std::cout << "convert_to_MGRS_Point:" << std::endl;
+  std::printf("\tinput PTCL point %d, %d\n", ptcl_pos.x, ptcl_pos.y);
+  std::printf("\tintermediate UTM point %f, %f\n", utm_point.x(), utm_point.y());
+  std::printf("\tFinal MGRS point %f, %f\n", mgrs_point.x(), mgrs_point.y());
 
   return mgrs_point;
 }

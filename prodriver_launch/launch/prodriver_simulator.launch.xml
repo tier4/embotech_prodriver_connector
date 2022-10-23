@@ -100,7 +100,7 @@
   <!-- Connector between autoware and prodriver -->
   <group if="$(var launch_prodriver_connector)">
     <push-ros-namespace namespace="prodriver_connector"/>
-    <node pkg="embotech_prodriver_connector" exec="embotech_prodriver_connector_exe" name="embotech_prodriver_connector" output="screen">
+    <node launch-prefix="konsole -e gdb -ex run --args" pkg="embotech_prodriver_connector" exec="embotech_prodriver_connector_exe" name="embotech_prodriver_connector" output="screen">
     </node>
   </group>
 

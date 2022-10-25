@@ -141,8 +141,8 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   // origin_prodriver_latlon.lon = 139.76947350053;
 
   // virtual_map
-  constexpr auto offset_x = 0.0;
-  constexpr auto offset_y = 0.0;
+  constexpr auto offset_x = 0.022;
+  constexpr auto offset_y = -0.11;
   origin_prodriver_latlon.lat = 35.68386482855;
   origin_prodriver_latlon.lon = 139.68506426425;
 

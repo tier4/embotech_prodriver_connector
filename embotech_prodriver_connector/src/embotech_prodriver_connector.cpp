@@ -135,18 +135,26 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   // origin of lat/lon coordinates in PTCL are map
   lanelet::GPSPoint origin_prodriver_latlon;
   //  odaiba
-  origin_prodriver_latlon.lat = 35.61458614188;
-  origin_prodriver_latlon.lon = 139.76947350053;
+  // constexpr auto offset_x = 15.479;
+  // constexpr auto offset_y = -9.321;
+  // origin_prodriver_latlon.lat = 35.61458614188;
+  // origin_prodriver_latlon.lon = 139.76947350053;
 
   // virtual_map
-  // origin_prodriver_latlon.lat = 35.68386482855;
-  // origin_prodriver_latlon.lon = 139.68506426425;
+  constexpr auto offset_x = 0.0;
+  constexpr auto offset_y = 0.0;
+  origin_prodriver_latlon.lat = 35.68386482855;
+  origin_prodriver_latlon.lon = 139.68506426425;
 
   // ryuyo_ci1
+  // constexpr auto offset_x = 0.0; // TODO
+  // constexpr auto offset_y = 0.0; // TODO
   // origin_prodriver_latlon.lat = 34.66441053284202;
   // origin_prodriver_latlon.lon = 137.83339405223919;
 
   // ryuyo_ci2
+  // constexpr auto offset_x = 0.0; // TODO
+  // constexpr auto offset_y = 0.0; // TODO
   // origin_prodriver_latlon.lat = 34.66444508923468;
   // origin_prodriver_latlon.lon = 137.83333262993906;
 
@@ -155,6 +163,11 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   // constexpr auto mgrs_code = "53SQU" // mgrs_code for ryuyo_ci1,2
   mgrs_projector_.setMGRSCode(mgrs_code);
   utm_projector_ = lanelet::projection::UtmProjector(lanelet::Origin(origin_prodriver_latlon));
+  auto intermediate_xy = utm_projector_.forward(origin_prodriver_latlon);
+  intermediate_xy.x() += offset_x;
+  intermediate_xy.y() += offset_y;
+  const auto corrected_latlon = utm_projector_.reverse(intermediate_xy);
+  utm_projector_ = lanelet::projection::UtmProjector(lanelet::Origin(corrected_latlon));
 
   // Initialize PTCL logging
   //  - Log threshold of console determined by environment variable
@@ -471,12 +484,6 @@ EmbotechProDriverConnector::convert_to_PTCL_Point(const MGRSPoint &mgrs_point) {
   PTCL_Position ptcl_pos;
   ptcl_pos.x = PTCL_toPTCLCoordinate(utm_point.x());
   ptcl_pos.y = PTCL_toPTCLCoordinate(utm_point.y());
-  std::cout << "convert_to_PTCL_Point:" << std::endl;
-  std::printf("\tinput MGRS point %f, %f\n", mgrs_point.x(), mgrs_point.y());
-  std::printf("\tintermediate gps point %f, %f\n", gps_point.lat, gps_point.lon);
-  std::printf("\trounded gps point %f, %f\n", lat, lon);
-  std::printf("\tUTM point %f, %f\n", utm_point.x(), utm_point.y());
-  std::printf("\tFinal PTCL point %d, %d\n", ptcl_pos.x, ptcl_pos.y);
   return ptcl_pos;
 }
 
@@ -492,11 +499,6 @@ MGRSPoint EmbotechProDriverConnector::convert_to_MGRS_Point(
       {utm_point.x(), utm_point.y(), utm_point.z()});
 
   const MGRSPoint mgrs_point = mgrs_projector_.forward(gps_point);
-  std::cout << "convert_to_MGRS_Point:" << std::endl;
-  std::printf("\tinput PTCL point %d, %d\n", ptcl_pos.x, ptcl_pos.y);
-  std::printf("\tintermediate UTM point %f, %f\n", utm_point.x(), utm_point.y());
-  std::printf("\tFinal MGRS point %f, %f\n", mgrs_point.x(), mgrs_point.y());
-
   return mgrs_point;
 }
 

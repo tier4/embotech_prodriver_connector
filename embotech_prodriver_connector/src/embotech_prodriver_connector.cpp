@@ -147,14 +147,14 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   origin_prodriver_latlon.lon = 139.68506426425;
 
   // ryuyo_ci1
-  // constexpr auto offset_x = 0.0; // TODO
-  // constexpr auto offset_y = 0.0; // TODO
+  // constexpr auto offset_x = 143693.7799;
+  // constexpr auto offset_y = 108023.170;
   // origin_prodriver_latlon.lat = 34.66441053284202;
   // origin_prodriver_latlon.lon = 137.83339405223919;
 
   // ryuyo_ci2
-  // constexpr auto offset_x = 0.0; // TODO
-  // constexpr auto offset_y = 0.0; // TODO
+  // constexpr auto offset_x = 143693.65344;
+  // constexpr auto offset_y = 108022.3417698;
   // origin_prodriver_latlon.lat = 34.66444508923468;
   // origin_prodriver_latlon.lon = 137.83333262993906;
 

@@ -107,6 +107,9 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   pub_trajectory_ =
       create_publisher<Trajectory>("/planning/scenario_planning/trajectory", 1);
 
+  pub_route_ =
+      create_publisher<HADMapRoute>("/planning/mission_planning/route", QoS{1}.transient_local());
+
   sub_kinematic_state_ = create_subscription<Odometry>(
       "/localization/kinematic_state", QoS{1},
       std::bind(&EmbotechProDriverConnector::on_kinematic_state, this, _1));
@@ -252,6 +255,13 @@ void EmbotechProDriverConnector::on_goal(
 
   const auto PTCL_route = to_PTCL_route(*current_goal_);
   send_to_PTCL(PTCL_route);
+
+  // publish an empty route with the received goal to Autoware
+  // needed by the 'ad_service_state_monitor'
+  autoware_auto_planning_msgs::msg::HADMapRoute route;
+  route.header = msg->header;
+  route.goal_pose = msg->pose;
+  pub_route_->publish(route);
 }
 
 PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {

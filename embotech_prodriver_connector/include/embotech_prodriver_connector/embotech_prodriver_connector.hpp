@@ -16,6 +16,7 @@
 #define EMBOTECH_PRODRIVER_CONNECTOR__EMBOTECH_PRODRIVER_CONNECTOR_HPP_
 
 // ROS
+#include "autoware_auto_planning_msgs/msg/detail/had_map_route__struct.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
@@ -32,6 +33,7 @@
 #include "autoware_auto_planning_msgs/msg/trajectory.hpp"
 #include "autoware_auto_vehicle_msgs/msg/steering_report.hpp"
 #include "autoware_auto_vehicle_msgs/msg/velocity_report.hpp"
+#include "autoware_auto_planning_msgs/msg/had_map_route.hpp"
 
 // Pro-DRIVER
 #include "embo_time.h"
@@ -58,6 +60,7 @@ using autoware_auto_perception_msgs::msg::PredictedPath;
 using autoware_auto_perception_msgs::msg::Shape;
 using autoware_auto_planning_msgs::msg::Trajectory;
 using autoware_auto_planning_msgs::msg::TrajectoryPoint;
+using autoware_auto_planning_msgs::msg::HADMapRoute;
 using autoware_auto_vehicle_msgs::msg::SteeringReport;
 
 using geometry_msgs::msg::AccelWithCovarianceStamped;
@@ -78,6 +81,7 @@ public:
 
 private:
   rclcpp::Publisher<Trajectory>::SharedPtr pub_trajectory_;
+  rclcpp::Publisher<HADMapRoute>::SharedPtr pub_route_;
   rclcpp::Subscription<Odometry>::SharedPtr sub_kinematic_state_;
   rclcpp::Subscription<AccelWithCovarianceStamped>::SharedPtr sub_acceleration_;
   rclcpp::Subscription<SteeringReport>::SharedPtr sub_steering_;

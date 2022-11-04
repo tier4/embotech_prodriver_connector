@@ -138,16 +138,16 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   // origin of lat/lon coordinates in PTCL are map
   lanelet::GPSPoint origin_prodriver_latlon;
   //  odaiba
-  // constexpr auto offset_x = 15.479;
-  // constexpr auto offset_y = -9.321;
-  // origin_prodriver_latlon.lat = 35.61458614188;
-  // origin_prodriver_latlon.lon = 139.76947350053;
+  // constexpr auto offset_x = 0.0;
+  // constexpr auto offset_y = 0.0;
+  // origin_prodriver_latlon.lat = 35.61450386813798;
+  // origin_prodriver_latlon.lon = 139.76964575666943;
 
   // virtual_map
-  constexpr auto offset_x = 0.022;
-  constexpr auto offset_y = -0.11;
-  origin_prodriver_latlon.lat = 35.68386482855;
-  origin_prodriver_latlon.lon = 139.68506426425;
+  constexpr auto offset_x = 0.0;
+  constexpr auto offset_y = 0.0;
+  origin_prodriver_latlon.lat = 35.68386376304963;
+  origin_prodriver_latlon.lon = 139.68506451866963;
 
   // ryuyo_ci1
   // constexpr auto offset_x = 143693.7799;

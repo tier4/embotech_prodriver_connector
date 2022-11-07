@@ -278,7 +278,7 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
       convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
   PTCL_CarState cat_state;
-  Embo_Time measured_time = Embo_Time_getCurrentTime();
+  const Embo_Time measured_time = Embo_Time_getCurrentTime();
   cat_state.header.measurementTime = measured_time; // double -> uint64_t
   cat_state.header.timeReference = measured_time;   // double -> uint64
   cat_state.header.vehicleId = 1;
@@ -308,7 +308,7 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
 PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     const PredictedObjects &object) {
   PTCL_PerceptionFrame ptcl_frame;
-  Embo_Time measured_time = Embo_Time_getCurrentTime();
+  const Embo_Time measured_time = Embo_Time_getCurrentTime();
   ptcl_frame.header.measurementTime = measured_time; // double -> uint64_t
   ptcl_frame.header.oemId = 0;                       // TODO: think later
   ptcl_frame.header.mapId = 0;                       // TODO: think later
@@ -361,7 +361,7 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
 Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     const PTCL_CarTrajectory &ptcl_car_trajectory) {
   Trajectory trajectory;
-  float64_t time_reference_sec = PTCL_toTime(
+  const float64_t time_reference_sec = PTCL_toTime(
       ptcl_car_trajectory.header.timeReference); // uint64_t -> double
   trajectory.header.stamp = rclcpp::Time(time_reference_sec);
   trajectory.header.frame_id = "map";
@@ -463,7 +463,7 @@ PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped &goal) {
 void EmbotechProDriverConnector::send_to_PTCL(const PTCL_CarState &car_state) {
   // Send PTCL car_state.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_state; ++dstIdx) {
-    bool sent_state = PTCL_CarState_send(&ptcl_context_, &car_state,
+    const bool sent_state = PTCL_CarState_send(&ptcl_context_, &car_state,
                                          destinations_car_state[dstIdx]);
     if (!sent_state) {
       RCLCPP_ERROR(get_logger(),
@@ -482,7 +482,7 @@ void EmbotechProDriverConnector::send_to_PTCL(
   // Send PTCL perception_frame.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_perception_frame;
        ++dstIdx) {
-    bool sent_perception_frame =
+    const bool sent_perception_frame =
         PTCL_PerceptionFrame_send(&ptcl_context_, &perception_frame,
                                   destinations_perception_frame[dstIdx]);
     if (!sent_perception_frame) {
@@ -500,7 +500,7 @@ void EmbotechProDriverConnector::send_to_PTCL(
 void EmbotechProDriverConnector::send_to_PTCL(const PTCL_Route &route) {
   // Send PTCL car_state.
   for (uint8_t dstIdx = 0U; dstIdx < num_destinations_route; ++dstIdx) {
-    bool sent_route =
+    const bool sent_route =
         PTCL_Route_send(&ptcl_context_, &route, destinations_route[dstIdx]);
     if (!sent_route) {
       RCLCPP_ERROR(get_logger(), "Failed to send route message to PTCL ID %u.",
@@ -564,7 +564,7 @@ void EmbotechProDriverConnector::setup_port(
     const uint32_t ip_local_host, const uint16_t &source_port,
     PTCL_Context &context, PTCL_UdpPort &udp_port) {
   // Setup PTCL context
-  PTCL_PortInterface *port_interface = PTCL_UdpPort_init(
+  const PTCL_PortInterface *port_interface = PTCL_UdpPort_init(
       ip_local_host, source_port, id_address_pairs, id_address_map_size,
       ptcl_timeout, source_id, &context, &udp_port);
 

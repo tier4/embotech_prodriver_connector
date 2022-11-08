@@ -19,6 +19,7 @@
 #include "autoware_auto_planning_msgs/msg/detail/had_map_route__struct.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
+#include "ptcl/ports/ptcl_port_udp_config.h"
 #include "rclcpp/rclcpp.hpp"
 
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
@@ -98,12 +99,16 @@ private:
 
   rclcpp::TimerBase::SharedPtr on_timer_;  //!< @brief timer for trajectory CB
 
-  // Setup UDP port
+  // PTCL
   PTCL_Context ptcl_context_;
   PTCL_UdpPort ptcl_udp_port_;
   PTCL_Context ptcl_context_receiver_;
   PTCL_UdpPort ptcl_udp_port_receiver_;
   PTCL_CarTrajectoryReceiverContext trajectory_receiver_context_;
+  std::vector<PTCL_UdpIdAddressPair> id_address_pairs_;
+  std::vector<PTCL_Id> destinations_car_state_;
+  std::vector<PTCL_Id> destinations_route_;
+  std::vector<PTCL_Id> destinations_perception_frame_;
 
   // coordinates conversion
   lanelet::projection::MGRSProjector mgrs_projector_;
@@ -124,11 +129,10 @@ private:
 
   // setup port
   void setup_port(
-    const unsigned int & id_address_map_size, const unsigned int & source_id,
-    const uint32_t ip_local_host, const uint16_t & source_port, PTCL_Context & context,
+    const unsigned int source_id,
+    const uint32_t ip_local_host, const uint16_t source_port, PTCL_Context & context,
     PTCL_UdpPort & udp_port);
   void setup_PTCL();
-  void setup_CB();
   void on_timer();
 
   // conversion: trajectory

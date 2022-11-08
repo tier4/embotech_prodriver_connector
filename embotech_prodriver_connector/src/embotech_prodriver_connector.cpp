@@ -101,41 +101,30 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   using rclcpp::QoS;
   using std::placeholders::_1;
 
-  pub_trajectory_ =
-      create_publisher<Trajectory>("/planning/scenario_planning/trajectory", 1);
-
-  pub_route_ =
-      create_publisher<HADMapRoute>("/planning/mission_planning/route", QoS{1}.transient_local());
-
-  pub_turn_signal_ =
-      create_publisher<TurnIndicatorsCommand>("/planning/turn_indicators_cmd", QoS{1}.transient_local());
-
-  pub_hazard_signal_ =
-      create_publisher<HazardLightsCommand>("/planning/hazard_lights_cmd", QoS{1}.transient_local());
+  pub_trajectory_ = create_publisher<Trajectory>("~/output/trajectory", 1);
+  pub_route_ = create_publisher<HADMapRoute>("~/output/route", QoS{1}.transient_local());
+  pub_turn_signal_ = create_publisher<TurnIndicatorsCommand>("~/output/turn_indicators_cmd", 1);
+  pub_hazard_signal_ = create_publisher<HazardLightsCommand>("~/output/hazard_lights_cmd", 1);
 
   sub_kinematic_state_ = create_subscription<Odometry>(
-      "/localization/kinematic_state", QoS{1},
+      "~/input/kinematic_state", 1,
       std::bind(&EmbotechProDriverConnector::on_kinematic_state, this, _1));
-
   sub_steering_ = create_subscription<SteeringReport>(
-      "/vehicle/status/steering_status", QoS{1},
+      "~/input/steering_status", 1,
       std::bind(&EmbotechProDriverConnector::on_steering, this, _1));
-
   sub_acceleration_ = create_subscription<AccelWithCovarianceStamped>(
-      "/localization/acceleration", QoS{1},
+      "~/input/acceleration", 1,
       std::bind(&EmbotechProDriverConnector::on_acceleration, this, _1));
-
   sub_dynamic_object_ = create_subscription<PredictedObjects>(
-      "/perception/object_recognition/objects", QoS{1},
+      "~/input/objects", 1,
       std::bind(&EmbotechProDriverConnector::on_dynamic_object, this, _1));
-
   sub_goal_ = create_subscription<PoseStamped>(
-      "/planning/mission_planning/goal", QoS{1},
+      "~/input/goal", 1,
       std::bind(&EmbotechProDriverConnector::on_goal, this, _1));
 
-  timer_sampling_time_ms_ = static_cast<uint32_t>(25);
+  constexpr auto timer_sampling_time_ms = static_cast<uint32_t>(25);
   on_timer_ = rclcpp::create_timer(
-      this, get_clock(), std::chrono::milliseconds(timer_sampling_time_ms_),
+      this, get_clock(), std::chrono::milliseconds(timer_sampling_time_ms),
       std::bind(&EmbotechProDriverConnector::on_timer, this));
 
   // origin of lat/lon coordinates in PTCL are map
@@ -409,29 +398,30 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
   return trajectory;
 }
 
-  HazardLightsCommand EmbotechProDriverConnector::to_autoware_hazard_light_command(const PTCL_CarTrajectory & ptcl_car_trajectory) {
-    HazardLightsCommand cmd;
-    float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
-    cmd.stamp = rclcpp::Time(time_reference_sec);
-    cmd.command = ptcl_car_trajectory.indicators == PTCL_INDICATORS_HAZARD ? HazardLightsCommand::ENABLE : HazardLightsCommand::NO_COMMAND;
-    return cmd;
+HazardLightsCommand EmbotechProDriverConnector::to_autoware_hazard_light_command(const PTCL_CarTrajectory & ptcl_car_trajectory) {
+  HazardLightsCommand cmd;
+  float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
+  cmd.stamp = rclcpp::Time(time_reference_sec);
+  cmd.command = ptcl_car_trajectory.indicators == PTCL_INDICATORS_HAZARD ? HazardLightsCommand::ENABLE : HazardLightsCommand::NO_COMMAND;
+  return cmd;
+}
+
+TurnIndicatorsCommand EmbotechProDriverConnector::to_autoware_turn_indicator(const PTCL_CarTrajectory & ptcl_car_trajectory) {
+  TurnIndicatorsCommand cmd;
+  float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
+  cmd.stamp = rclcpp::Time(time_reference_sec);
+  switch(ptcl_car_trajectory.indicators) {
+    case PTCL_INDICATORS_LEFT:
+      cmd.command = TurnIndicatorsCommand::ENABLE_LEFT;
+      break;
+    case PTCL_INDICATORS_RIGHT:
+      cmd.command = TurnIndicatorsCommand::ENABLE_RIGHT;
+      break;
+    default:
+      cmd.command = TurnIndicatorsCommand::NO_COMMAND;
   }
-  TurnIndicatorsCommand EmbotechProDriverConnector::to_autoware_turn_indicator(const PTCL_CarTrajectory & ptcl_car_trajectory) {
-    TurnIndicatorsCommand cmd;
-    float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
-    cmd.stamp = rclcpp::Time(time_reference_sec);
-    switch(ptcl_car_trajectory.indicators) {
-      case PTCL_INDICATORS_LEFT:
-        cmd.command = TurnIndicatorsCommand::ENABLE_LEFT;
-        break;
-      case PTCL_INDICATORS_RIGHT:
-        cmd.command = TurnIndicatorsCommand::ENABLE_RIGHT;
-        break;
-      default:
-        cmd.command = TurnIndicatorsCommand::NO_COMMAND;
-    }
-    return cmd;
-  }
+  return cmd;
+}
 
 PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped &goal) {
   PTCL_Route ptcl_route;

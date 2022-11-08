@@ -96,7 +96,6 @@ private:
   rclcpp::Subscription<PredictedObjects>::SharedPtr sub_dynamic_object_;
   rclcpp::Subscription<PoseStamped>::SharedPtr sub_goal_;
 
-  uint32_t timer_sampling_time_ms_;        //!< @brief timer sampling time
   rclcpp::TimerBase::SharedPtr on_timer_;  //!< @brief timer for trajectory CB
 
   // Setup UDP port

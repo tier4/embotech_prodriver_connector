@@ -430,6 +430,7 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
       default:
         cmd.command = TurnIndicatorsCommand::NO_COMMAND;
     }
+    return cmd;
   }
 
 PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped &goal) {

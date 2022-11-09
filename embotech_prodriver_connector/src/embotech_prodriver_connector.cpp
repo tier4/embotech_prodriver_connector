@@ -15,7 +15,6 @@
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
-#include "embo_time.h"
 #include "embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp"
 #include "lanelet2_io/Projection.h"
 #include "ptcl/ports/ptcl_port_udp_config.h"
@@ -251,10 +250,10 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
   const auto ptcl_pos =
       convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
+  const auto current_time_ms = get_clock()->now().nanoseconds() / 1000000U;
   PTCL_CarState cat_state;
-  const Embo_Time measured_time = Embo_Time_getCurrentTime();
-  cat_state.header.measurementTime = measured_time; // double -> uint64_t
-  cat_state.header.timeReference = measured_time;   // double -> uint64
+  cat_state.header.measurementTime = current_time_ms;
+  cat_state.header.timeReference = current_time_ms;
   cat_state.header.vehicleId = 1;
   cat_state.pose.position.x = ptcl_pos.x;
   cat_state.pose.position.y = ptcl_pos.y;
@@ -282,8 +281,8 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
 PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     const PredictedObjects &object) {
   PTCL_PerceptionFrame ptcl_frame;
-  const Embo_Time measured_time = Embo_Time_getCurrentTime();
-  ptcl_frame.header.measurementTime = measured_time; // double -> uint64_t
+  const auto current_time_ms = get_clock()->now().nanoseconds() / 1000000U;
+  ptcl_frame.header.measurementTime = current_time_ms;
   ptcl_frame.header.oemId = 0;                       // TODO: think later
   ptcl_frame.header.mapId = 0;                       // TODO: think later
   ptcl_frame.header.mapCrc = 0;                      // TODO: think later

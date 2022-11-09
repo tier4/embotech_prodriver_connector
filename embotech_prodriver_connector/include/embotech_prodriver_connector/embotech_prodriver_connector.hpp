@@ -41,7 +41,6 @@
 #include "autoware_auto_vehicle_msgs/msg/turn_indicators_command.hpp"
 
 // Pro-DRIVER
-#include "embo_time.h"
 #include "lanelet2_core/primitives/GPSPoint.h"
 #include "lanelet2_projection/UTM.h"
 #include "ptcl/messages/ptcl_perception_frame.h"

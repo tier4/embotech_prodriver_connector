@@ -128,7 +128,7 @@ Polygon2d convertCylindricalObjectToGeometryPolygon(
   const double obj_x = current_pose.position.x;
   const double obj_y = current_pose.position.y;
 
-  const int N = 20;
+  constexpr int N = 20;
   const double r = obj_shape.dimensions.x / 2;
   for (int i = 0; i < N; ++i) {
     object_polygon.outer().emplace_back(
@@ -147,8 +147,8 @@ Polygon2d convertPolygonObjectToGeometryPolygon(const Pose & current_pose, const
   fromMsg(current_pose, tf_map2obj);
   const auto obj_points = obj_shape.footprint.points;
   for (const auto & obj_point : obj_points) {
-    tf2::Vector3 obj(obj_point.x, obj_point.y, obj_point.z);
-    tf2::Vector3 tf_obj = tf_map2obj * obj;
+    const tf2::Vector3 obj(obj_point.x, obj_point.y, obj_point.z);
+    const tf2::Vector3 tf_obj = tf_map2obj * obj;
     object_polygon.outer().emplace_back(tf_obj.x(), tf_obj.y());
   }
   object_polygon.outer().push_back(object_polygon.outer().front());

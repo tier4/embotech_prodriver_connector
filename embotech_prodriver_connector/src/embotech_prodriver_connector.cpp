@@ -15,9 +15,9 @@
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
-#include "embo_time.h"
 #include "embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp"
 #include "lanelet2_io/Projection.h"
+#include "ptcl/ports/ptcl_port_udp_config.h"
 #include "ptcl/subtypes/ptcl_indicators.h"
 
 #include <lanelet2_projection/Mercator.h>
@@ -32,44 +32,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-
-// PTCL UDP Port configuration data
-const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
-const uint32_t ip_local_host = PTCL_UdpPort_getIpFromArray(ip_local_host_array);
-
-const PTCL_Id navigator_id = 3U;
-const uint16_t navigator_port = 4983U;
-const PTCL_Id motion_planner_id = 4U;
-const uint16_t motion_planner_port = 4984U;
-const PTCL_Id protect_id = 5U;
-const uint16_t protect_port = 4985U;
-const PTCL_Id developer_ui_id = 9U;
-const uint16_t developer_ui_port = 4989U;
-const PTCL_Id autoware_id = 10U;
-const uint16_t autoware_port = 4990U;
-const PTCL_Id trajectory_receiver_id = 11U;
-const uint16_t trajectory_receiver_port = 4991U;
-
-const uint32_t num_ip_address_pairs = 6U;
-const PTCL_UdpIdAddressPair id_address_pairs[] = {
-    {navigator_id, ip_local_host, navigator_port},
-    {motion_planner_id, ip_local_host, motion_planner_port},
-    {protect_id, ip_local_host, protect_port},
-    {developer_ui_id, ip_local_host, developer_ui_port},
-    {autoware_id, ip_local_host, autoware_port},
-    {trajectory_receiver_id, ip_local_host, trajectory_receiver_port}};
-
-const uint8_t num_destinations_state = 4U;
-const PTCL_Id destinations_car_state[] = {navigator_id, motion_planner_id,
-                                          protect_id, developer_ui_id};
-const uint8_t num_destinations_route = 1U;
-const PTCL_Id destinations_route[] = {navigator_id};
-const uint8_t num_destinations_perception_frame = 3U;
-const PTCL_Id destinations_perception_frame[] = {motion_planner_id, protect_id,
-                                                 developer_ui_id};
-
-const int32_t ptcl_timeout =
-    1000; // Timeout of blocking UDP receiver call in milliseconds
 
 // PTCL msg
 typedef struct CarTrajectoryData {
@@ -101,41 +63,32 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   using rclcpp::QoS;
   using std::placeholders::_1;
 
-  pub_trajectory_ =
-      create_publisher<Trajectory>("/planning/scenario_planning/trajectory", 1);
+  setup_PTCL();
 
-  pub_route_ =
-      create_publisher<HADMapRoute>("/planning/mission_planning/route", QoS{1}.transient_local());
-
-  pub_turn_signal_ =
-      create_publisher<TurnIndicatorsCommand>("/planning/turn_indicators_cmd", QoS{1}.transient_local());
-
-  pub_hazard_signal_ =
-      create_publisher<HazardLightsCommand>("/planning/hazard_lights_cmd", QoS{1}.transient_local());
+  pub_trajectory_ = create_publisher<Trajectory>("~/output/trajectory", 1);
+  pub_route_ = create_publisher<HADMapRoute>("~/output/route", QoS{1}.transient_local());
+  pub_turn_signal_ = create_publisher<TurnIndicatorsCommand>("~/output/turn_indicators_cmd", 1);
+  pub_hazard_signal_ = create_publisher<HazardLightsCommand>("~/output/hazard_lights_cmd", 1);
 
   sub_kinematic_state_ = create_subscription<Odometry>(
-      "/localization/kinematic_state", QoS{1},
+      "~/input/kinematic_state", 1,
       std::bind(&EmbotechProDriverConnector::on_kinematic_state, this, _1));
-
   sub_steering_ = create_subscription<SteeringReport>(
-      "/vehicle/status/steering_status", QoS{1},
+      "~/input/steering_status", 1,
       std::bind(&EmbotechProDriverConnector::on_steering, this, _1));
-
   sub_acceleration_ = create_subscription<AccelWithCovarianceStamped>(
-      "/localization/acceleration", QoS{1},
+      "~/input/acceleration", 1,
       std::bind(&EmbotechProDriverConnector::on_acceleration, this, _1));
-
   sub_dynamic_object_ = create_subscription<PredictedObjects>(
-      "/perception/object_recognition/objects", QoS{1},
+      "~/input/objects", 1,
       std::bind(&EmbotechProDriverConnector::on_dynamic_object, this, _1));
-
   sub_goal_ = create_subscription<PoseStamped>(
-      "/planning/mission_planning/goal", QoS{1},
+      "~/input/goal", 1,
       std::bind(&EmbotechProDriverConnector::on_goal, this, _1));
 
-  timer_sampling_time_ms_ = static_cast<uint32_t>(25);
+  constexpr auto timer_sampling_time_ms = static_cast<uint32_t>(25);
   on_timer_ = rclcpp::create_timer(
-      this, get_clock(), std::chrono::milliseconds(timer_sampling_time_ms_),
+      this, get_clock(), std::chrono::milliseconds(timer_sampling_time_ms),
       std::bind(&EmbotechProDriverConnector::on_timer, this));
 
   // origin of lat/lon coordinates in PTCL are map
@@ -174,13 +127,6 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
   intermediate_xy.y() += offset_y;
   const auto corrected_latlon = utm_projector_.reverse(intermediate_xy);
   utm_projector_ = lanelet::projection::UtmProjector(lanelet::Origin(corrected_latlon));
-
-  // Initialize PTCL logging
-  //  - Log threshold of console determined by environment variable
-  PTCL_setLogPrefix("EX");
-  PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
-  setup_PTCL();
-  setup_CB();
 }
 
 void EmbotechProDriverConnector::on_timer() {
@@ -201,8 +147,40 @@ void EmbotechProDriverConnector::on_timer() {
   }
 }
 
-void EmbotechProDriverConnector::setup_CB() {
-  setup_port(num_ip_address_pairs, trajectory_receiver_id, ip_local_host,
+void EmbotechProDriverConnector::setup_PTCL() {
+  const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
+  const uint32_t ip_local_host = PTCL_UdpPort_getIpFromArray(ip_local_host_array);
+
+  const PTCL_Id navigator_id = 3U;
+  const uint16_t navigator_port = 4983U;
+  const PTCL_Id motion_planner_id = 4U;
+  const uint16_t motion_planner_port = 4984U;
+  const PTCL_Id protect_id = 5U;
+  const uint16_t protect_port = 4985U;
+  const PTCL_Id developer_ui_id = 9U;
+  const uint16_t developer_ui_port = 4989U;
+  const PTCL_Id autoware_id = 10U;
+  const uint16_t autoware_port = 4990U;
+  const PTCL_Id trajectory_receiver_id = 11U;
+  const uint16_t trajectory_receiver_port = 4991U;
+
+  id_address_pairs_ = {
+      {navigator_id, ip_local_host, navigator_port},
+      {motion_planner_id, ip_local_host, motion_planner_port},
+      {protect_id, ip_local_host, protect_port},
+      {developer_ui_id, ip_local_host, developer_ui_port},
+      {autoware_id, ip_local_host, autoware_port},
+      {trajectory_receiver_id, ip_local_host, trajectory_receiver_port}};
+
+  destinations_car_state_ = {navigator_id, motion_planner_id, protect_id, developer_ui_id};
+  destinations_route_ = {navigator_id};
+  destinations_perception_frame_ = {motion_planner_id, protect_id, developer_ui_id};
+
+  PTCL_setLogPrefix("EX");
+  PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
+  setup_port(autoware_id, ip_local_host, autoware_port,
+             ptcl_context_, ptcl_udp_port_);
+  setup_port(trajectory_receiver_id, ip_local_host,
              trajectory_receiver_port, ptcl_context_receiver_,
              ptcl_udp_port_receiver_);
   const bool installSuccess = PTCL_CarTrajectory_installCallback(
@@ -217,11 +195,6 @@ void EmbotechProDriverConnector::setup_CB() {
   } else {
     printf("Start receiving message from protect failed.\n");
   }
-}
-
-void EmbotechProDriverConnector::setup_PTCL() {
-  setup_port(num_ip_address_pairs, autoware_id, ip_local_host, autoware_port,
-             ptcl_context_, ptcl_udp_port_);
 }
 
 void EmbotechProDriverConnector::on_kinematic_state(
@@ -277,10 +250,10 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
   const auto ptcl_pos =
       convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
+  const auto current_time_ms = get_clock()->now().nanoseconds() / 1000000U;
   PTCL_CarState cat_state;
-  Embo_Time measured_time = Embo_Time_getCurrentTime();
-  cat_state.header.measurementTime = measured_time; // double -> uint64_t
-  cat_state.header.timeReference = measured_time;   // double -> uint64
+  cat_state.header.measurementTime = current_time_ms;
+  cat_state.header.timeReference = current_time_ms;
   cat_state.header.vehicleId = 1;
   cat_state.pose.position.x = ptcl_pos.x;
   cat_state.pose.position.y = ptcl_pos.y;
@@ -308,8 +281,8 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
 PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     const PredictedObjects &object) {
   PTCL_PerceptionFrame ptcl_frame;
-  Embo_Time measured_time = Embo_Time_getCurrentTime();
-  ptcl_frame.header.measurementTime = measured_time; // double -> uint64_t
+  const auto current_time_ms = get_clock()->now().nanoseconds() / 1000000U;
+  ptcl_frame.header.measurementTime = current_time_ms;
   ptcl_frame.header.oemId = 0;                       // TODO: think later
   ptcl_frame.header.mapId = 0;                       // TODO: think later
   ptcl_frame.header.mapCrc = 0;                      // TODO: think later
@@ -361,7 +334,7 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
 Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     const PTCL_CarTrajectory &ptcl_car_trajectory) {
   Trajectory trajectory;
-  float64_t time_reference_sec = PTCL_toTime(
+  const float64_t time_reference_sec = PTCL_toTime(
       ptcl_car_trajectory.header.timeReference); // uint64_t -> double
   trajectory.header.stamp = rclcpp::Time(time_reference_sec);
   trajectory.header.frame_id = "map";
@@ -409,29 +382,30 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
   return trajectory;
 }
 
-  HazardLightsCommand EmbotechProDriverConnector::to_autoware_hazard_light_command(const PTCL_CarTrajectory & ptcl_car_trajectory) {
-    HazardLightsCommand cmd;
-    float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
-    cmd.stamp = rclcpp::Time(time_reference_sec);
-    cmd.command = ptcl_car_trajectory.indicators == PTCL_INDICATORS_HAZARD ? HazardLightsCommand::ENABLE : HazardLightsCommand::NO_COMMAND;
-    return cmd;
+HazardLightsCommand EmbotechProDriverConnector::to_autoware_hazard_light_command(const PTCL_CarTrajectory & ptcl_car_trajectory) {
+  HazardLightsCommand cmd;
+  float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
+  cmd.stamp = rclcpp::Time(time_reference_sec);
+  cmd.command = ptcl_car_trajectory.indicators == PTCL_INDICATORS_HAZARD ? HazardLightsCommand::ENABLE : HazardLightsCommand::NO_COMMAND;
+  return cmd;
+}
+
+TurnIndicatorsCommand EmbotechProDriverConnector::to_autoware_turn_indicator(const PTCL_CarTrajectory & ptcl_car_trajectory) {
+  TurnIndicatorsCommand cmd;
+  float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
+  cmd.stamp = rclcpp::Time(time_reference_sec);
+  switch(ptcl_car_trajectory.indicators) {
+    case PTCL_INDICATORS_LEFT:
+      cmd.command = TurnIndicatorsCommand::ENABLE_LEFT;
+      break;
+    case PTCL_INDICATORS_RIGHT:
+      cmd.command = TurnIndicatorsCommand::ENABLE_RIGHT;
+      break;
+    default:
+      cmd.command = TurnIndicatorsCommand::NO_COMMAND;
   }
-  TurnIndicatorsCommand EmbotechProDriverConnector::to_autoware_turn_indicator(const PTCL_CarTrajectory & ptcl_car_trajectory) {
-    TurnIndicatorsCommand cmd;
-    float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
-    cmd.stamp = rclcpp::Time(time_reference_sec);
-    switch(ptcl_car_trajectory.indicators) {
-      case PTCL_INDICATORS_LEFT:
-        cmd.command = TurnIndicatorsCommand::ENABLE_LEFT;
-        break;
-      case PTCL_INDICATORS_RIGHT:
-        cmd.command = TurnIndicatorsCommand::ENABLE_RIGHT;
-        break;
-      default:
-        cmd.command = TurnIndicatorsCommand::NO_COMMAND;
-    }
-    return cmd;
-  }
+  return cmd;
+}
 
 PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped &goal) {
   PTCL_Route ptcl_route;
@@ -461,54 +435,26 @@ PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped &goal) {
 }
 
 void EmbotechProDriverConnector::send_to_PTCL(const PTCL_CarState &car_state) {
-  // Send PTCL car_state.
-  for (uint8_t dstIdx = 0U; dstIdx < num_destinations_state; ++dstIdx) {
-    bool sent_state = PTCL_CarState_send(&ptcl_context_, &car_state,
-                                         destinations_car_state[dstIdx]);
-    if (!sent_state) {
-      RCLCPP_ERROR(get_logger(),
-                   "Failed to send car_state message to PTCL ID %u.",
-                   destinations_car_state[dstIdx]);
-    } else {
-      // RCLCPP_INFO(
-      //   get_logger(), "car_state message sent to PTCL ID %u.",
-      //   destinations_car_state[dstIdx]);
-    }
+  for(const auto & destination : destinations_car_state_) {
+    const bool sent_state = PTCL_CarState_send(&ptcl_context_, &car_state, destination);
+    if (!sent_state)
+      RCLCPP_ERROR(get_logger(), "Failed to send car_state message to PTCL ID %u.", destination);
   }
 }
 
-void EmbotechProDriverConnector::send_to_PTCL(
-    const PTCL_PerceptionFrame &perception_frame) {
-  // Send PTCL perception_frame.
-  for (uint8_t dstIdx = 0U; dstIdx < num_destinations_perception_frame;
-       ++dstIdx) {
-    bool sent_perception_frame =
-        PTCL_PerceptionFrame_send(&ptcl_context_, &perception_frame,
-                                  destinations_perception_frame[dstIdx]);
-    if (!sent_perception_frame) {
-      RCLCPP_ERROR(get_logger(),
-                   "Failed to send perception_frame message to PTCL ID %u.",
-                   destinations_perception_frame[dstIdx]);
-    } else {
-      // RCLCPP_INFO(
-      //   get_logger(), "perception_frame message sent to PTCL ID %u.",
-      //   destinations_perception_frame[dstIdx]);
-    }
+void EmbotechProDriverConnector::send_to_PTCL(const PTCL_PerceptionFrame &perception_frame) {
+  for (const auto & destination:  destinations_perception_frame_) {
+    const bool sent_perception_frame = PTCL_PerceptionFrame_send(&ptcl_context_, &perception_frame, destination);
+    if (!sent_perception_frame)
+      RCLCPP_ERROR(get_logger(), "Failed to send perception_frame message to PTCL ID %u.", destination);
   }
 }
 
 void EmbotechProDriverConnector::send_to_PTCL(const PTCL_Route &route) {
-  // Send PTCL car_state.
-  for (uint8_t dstIdx = 0U; dstIdx < num_destinations_route; ++dstIdx) {
-    bool sent_route =
-        PTCL_Route_send(&ptcl_context_, &route, destinations_route[dstIdx]);
-    if (!sent_route) {
-      RCLCPP_ERROR(get_logger(), "Failed to send route message to PTCL ID %u.",
-                   destinations_route[dstIdx]);
-    } else {
-      RCLCPP_INFO(get_logger(), "route message sent to PTCL ID %u.",
-                  destinations_route[dstIdx]);
-    }
+  for (const auto & destination : destinations_route_) {
+    const bool sent_route = PTCL_Route_send(&ptcl_context_, &route, destination);
+    if (!sent_route)
+      RCLCPP_ERROR(get_logger(), "Failed to send route message to PTCL ID %u.", destination);
   }
 }
 
@@ -560,13 +506,13 @@ PTCL_Polytope EmbotechProDriverConnector::to_PTCL_polytope(const Shape &shape,
 }
 
 void EmbotechProDriverConnector::setup_port(
-    const unsigned int &id_address_map_size, const unsigned int &source_id,
-    const uint32_t ip_local_host, const uint16_t &source_port,
+    const unsigned int source_id,
+    const uint32_t ip_local_host, const uint16_t source_port,
     PTCL_Context &context, PTCL_UdpPort &udp_port) {
-  // Setup PTCL context
-  PTCL_PortInterface *port_interface = PTCL_UdpPort_init(
-      ip_local_host, source_port, id_address_pairs, id_address_map_size,
-      ptcl_timeout, source_id, &context, &udp_port);
+  const int32_t ptcl_timeout_ms = 1000;
+  const PTCL_PortInterface *port_interface = PTCL_UdpPort_init(
+      ip_local_host, source_port, id_address_pairs_.data(), id_address_pairs_.size(),
+      ptcl_timeout_ms, source_id, &context, &udp_port);
 
   bool setup_success = (port_interface != NULL);
   if (setup_success) {
@@ -575,7 +521,6 @@ void EmbotechProDriverConnector::setup_port(
   } else {
     PTCL_UdpPort_destroy(&udp_port);
     RCLCPP_ERROR(this->get_logger(), "Init of context failed.\n");
-    // printf("Init of context failed.\n");
   }
 }
 

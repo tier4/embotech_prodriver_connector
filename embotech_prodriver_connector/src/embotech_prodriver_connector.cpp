@@ -13,9 +13,12 @@
 // limitations under the License.
 
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
+#include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
+#include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
 #include "embo_time.h"
 #include "embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp"
 #include "lanelet2_io/Projection.h"
+#include "ptcl/subtypes/ptcl_indicators.h"
 
 #include <lanelet2_projection/Mercator.h>
 #include <lanelet2_projection/UTM.h>
@@ -29,11 +32,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-
-using namespace std::literals::chrono_literals;
-
-#define EXIT_VALUE_OK (0)
-#define EXIT_VALUE_ERR (1)
 
 // PTCL UDP Port configuration data
 const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
@@ -72,7 +70,6 @@ const PTCL_Id destinations_perception_frame[] = {motion_planner_id, protect_id,
 
 const int32_t ptcl_timeout =
     1000; // Timeout of blocking UDP receiver call in milliseconds
-#define WHILE_LOOP_SLEEP_DURATION_US (100)
 
 // PTCL msg
 typedef struct CarTrajectoryData {
@@ -109,6 +106,12 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
 
   pub_route_ =
       create_publisher<HADMapRoute>("/planning/mission_planning/route", QoS{1}.transient_local());
+
+  pub_turn_signal_ =
+      create_publisher<TurnIndicatorsCommand>("/planning/turn_indicators_cmd", QoS{1}.transient_local());
+
+  pub_hazard_signal_ =
+      create_publisher<HazardLightsCommand>("/planning/hazard_lights_cmd", QoS{1}.transient_local());
 
   sub_kinematic_state_ = create_subscription<Odometry>(
       "/localization/kinematic_state", QoS{1},
@@ -184,11 +187,15 @@ void EmbotechProDriverConnector::on_timer() {
   if (!car_trajectory_data_.msg_received) {
     return;
   }
-  current_trajectory_ =
+  const auto current_trajectory =
       to_autoware_trajectory(car_trajectory_data_.car_trajectory);
+  const auto turn_indicator_msg = to_autoware_turn_indicator(car_trajectory_data_.car_trajectory);
+  const auto hazard_light_msg = to_autoware_hazard_light_command(car_trajectory_data_.car_trajectory);
 
-  if (!current_trajectory_.points.empty()) {
-    pub_trajectory_->publish(current_trajectory_);
+  if (!current_trajectory.points.empty()) {
+    pub_trajectory_->publish(current_trajectory);
+    pub_turn_signal_->publish(turn_indicator_msg);
+    pub_hazard_signal_->publish(hazard_light_msg);
   } else {
     RCLCPP_ERROR(get_logger(), "embotech trajectory is empty. not published.");
   }
@@ -401,6 +408,30 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
 
   return trajectory;
 }
+
+  HazardLightsCommand EmbotechProDriverConnector::to_autoware_hazard_light_command(const PTCL_CarTrajectory & ptcl_car_trajectory) {
+    HazardLightsCommand cmd;
+    float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
+    cmd.stamp = rclcpp::Time(time_reference_sec);
+    cmd.command = ptcl_car_trajectory.indicators == PTCL_INDICATORS_HAZARD ? HazardLightsCommand::ENABLE : HazardLightsCommand::NO_COMMAND;
+    return cmd;
+  }
+  TurnIndicatorsCommand EmbotechProDriverConnector::to_autoware_turn_indicator(const PTCL_CarTrajectory & ptcl_car_trajectory) {
+    TurnIndicatorsCommand cmd;
+    float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
+    cmd.stamp = rclcpp::Time(time_reference_sec);
+    switch(ptcl_car_trajectory.indicators) {
+      case PTCL_INDICATORS_LEFT:
+        cmd.command = TurnIndicatorsCommand::ENABLE_LEFT;
+        break;
+      case PTCL_INDICATORS_RIGHT:
+        cmd.command = TurnIndicatorsCommand::ENABLE_RIGHT;
+        break;
+      default:
+        cmd.command = TurnIndicatorsCommand::NO_COMMAND;
+    }
+    return cmd;
+  }
 
 PTCL_Route EmbotechProDriverConnector::to_PTCL_route(const PoseStamped &goal) {
   PTCL_Route ptcl_route;

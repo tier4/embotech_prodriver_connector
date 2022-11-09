@@ -17,6 +17,8 @@
 
 // ROS
 #include "autoware_auto_planning_msgs/msg/detail/had_map_route__struct.hpp"
+#include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
+#include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
@@ -34,6 +36,8 @@
 #include "autoware_auto_vehicle_msgs/msg/steering_report.hpp"
 #include "autoware_auto_vehicle_msgs/msg/velocity_report.hpp"
 #include "autoware_auto_planning_msgs/msg/had_map_route.hpp"
+#include "autoware_auto_vehicle_msgs/msg/hazard_lights_command.hpp"
+#include "autoware_auto_vehicle_msgs/msg/turn_indicators_command.hpp"
 
 // Pro-DRIVER
 #include "embo_time.h"
@@ -62,6 +66,8 @@ using autoware_auto_planning_msgs::msg::Trajectory;
 using autoware_auto_planning_msgs::msg::TrajectoryPoint;
 using autoware_auto_planning_msgs::msg::HADMapRoute;
 using autoware_auto_vehicle_msgs::msg::SteeringReport;
+using autoware_auto_vehicle_msgs::msg::HazardLightsCommand;
+using autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand;
 
 using geometry_msgs::msg::AccelWithCovarianceStamped;
 using geometry_msgs::msg::Pose;
@@ -82,6 +88,8 @@ public:
 private:
   rclcpp::Publisher<Trajectory>::SharedPtr pub_trajectory_;
   rclcpp::Publisher<HADMapRoute>::SharedPtr pub_route_;
+  rclcpp::Publisher<TurnIndicatorsCommand>::SharedPtr pub_turn_signal_;
+  rclcpp::Publisher<HazardLightsCommand>::SharedPtr pub_hazard_signal_;
   rclcpp::Subscription<Odometry>::SharedPtr sub_kinematic_state_;
   rclcpp::Subscription<AccelWithCovarianceStamped>::SharedPtr sub_acceleration_;
   rclcpp::Subscription<SteeringReport>::SharedPtr sub_steering_;
@@ -107,7 +115,6 @@ private:
   AccelWithCovarianceStamped::ConstSharedPtr current_acceleration_;
   PredictedObjects::ConstSharedPtr current_objects_;
   PoseStamped::ConstSharedPtr current_goal_;
-  Trajectory current_trajectory_;
 
   // autoware callbacks
   void on_kinematic_state(const Odometry::ConstSharedPtr msg);
@@ -127,6 +134,10 @@ private:
 
   // conversion: trajectory
   Trajectory to_autoware_trajectory(const PTCL_CarTrajectory & car_trajectory);
+  // conversion: hazard light
+  HazardLightsCommand to_autoware_hazard_light_command(const PTCL_CarTrajectory & car_trajectory);
+  // conversion: turn signal
+  TurnIndicatorsCommand to_autoware_turn_indicator(const PTCL_CarTrajectory & car_trajectory);
 
   // conversion: ego
   PTCL_CarState to_PTCL_car_state();

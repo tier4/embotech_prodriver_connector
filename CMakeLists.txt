@@ -32,4 +32,4 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE ${PROJECT_NAME}_exe
 )
 
-ament_auto_package(INSTALL_TO_SHARE param)
+ament_auto_package(INSTALL_TO_SHARE launch param)

@@ -93,33 +93,11 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(
 
   // origin of lat/lon coordinates in PTCL are map
   lanelet::GPSPoint origin_prodriver_latlon;
-  //  odaiba
-  // constexpr auto offset_x = 0.0;
-  // constexpr auto offset_y = 0.0;
-  // origin_prodriver_latlon.lat = 35.61450386813798;
-  // origin_prodriver_latlon.lon = 139.76964575666943;
-
-  // virtual_map
-  constexpr auto offset_x = 0.0;
-  constexpr auto offset_y = 0.0;
-  origin_prodriver_latlon.lat = 35.68386376304963;
-  origin_prodriver_latlon.lon = 139.68506451866963;
-
-  // ryuyo_ci1
-  // constexpr auto offset_x = 143693.7799;
-  // constexpr auto offset_y = 108023.170;
-  // origin_prodriver_latlon.lat = 34.66441053284202;
-  // origin_prodriver_latlon.lon = 137.83339405223919;
-
-  // ryuyo_ci2
-  // constexpr auto offset_x = 143693.65344;
-  // constexpr auto offset_y = 108022.3417698;
-  // origin_prodriver_latlon.lat = 34.66444508923468;
-  // origin_prodriver_latlon.lon = 137.83333262993906;
-
-  // calculate GPSPoint
-  constexpr auto mgrs_code = "54SUE";  // mgrs_code for odaiba and virtual_map
-  // constexpr auto mgrs_code = "53SQU" // mgrs_code for ryuyo_ci1,2
+  const auto mgrs_code = declare_parameter<std::string>("map_origin.mgrs_code");
+  origin_prodriver_latlon.lat = declare_parameter<double>("map_origin.latitude");
+  origin_prodriver_latlon.lon = declare_parameter<double>("map_origin.longitude");
+  const auto offset_x = declare_parameter<double>("map_origin.offset_x");
+  const auto offset_y = declare_parameter<double>("map_origin.offset_y");
   mgrs_projector_.setMGRSCode(mgrs_code);
   utm_projector_ = lanelet::projection::UtmProjector(lanelet::Origin(origin_prodriver_latlon));
   auto intermediate_xy = utm_projector_.forward(origin_prodriver_latlon);

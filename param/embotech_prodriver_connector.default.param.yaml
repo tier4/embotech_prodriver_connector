@@ -1,0 +1,27 @@
+/**:
+  ros__parameters:
+    map_origin:
+      ### virtual map
+      mgrs_code: "54SUE"
+      latitude: 35.68386376304963
+      longitude: 139.68506451866963
+      offset_x: 0.0
+      offset_y: 0.0
+      ### odaiba
+      # mgrs_code: "54SUE"
+      # latitude: 35.61450386813798
+      # longitude: 139.76964575666943
+      # offset_x: 0.0
+      # offset_y: 0.0
+      ### ryuyo_ci1
+      # mgrs_code: "53SQU"
+      # latitude: 34.66441053284202
+      # longitude: 137.83339405223919
+      # offset_x: 143693.7799
+      # offset_y: 108023.170
+      ### ryuyo_ci2
+      # mgrs_code: "53SQU"
+      # latitude: 34.66444508923468
+      # longitude: 137.83333262993906
+      # offset_x: 143693.65344
+      # offset_y: 108022.3417698

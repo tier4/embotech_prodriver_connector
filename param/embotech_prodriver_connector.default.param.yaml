@@ -25,3 +25,17 @@
       # longitude: 137.83333262993906
       # offset_x: 143693.65344
       # offset_y: 108022.3417698
+    network:
+      localhost_ip: [127,0,0,1]
+      navigator_id: 3
+      navigator_port: 4983
+      motion_planner_id: 4
+      motion_planner_port: 4984
+      protect_id: 5
+      protect_port: 4985
+      developer_ui_id: 9
+      developer_ui_port: 4989
+      autoware_id: 10
+      autoware_port: 4990
+      trajectory_receiver_id: 11
+      trajectory_receiver_port: 4991

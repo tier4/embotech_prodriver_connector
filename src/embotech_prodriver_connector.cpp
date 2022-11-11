@@ -126,29 +126,30 @@ void EmbotechProDriverConnector::on_timer() {
 }
 
 void EmbotechProDriverConnector::setup_PTCL() {
-  const uint8_t ip_local_host_array[] = {127U, 0U, 0U, 1U};
-  const uint32_t ip_local_host = PTCL_UdpPort_getIpFromArray(ip_local_host_array);
+  const auto ip_localhost_raw = declare_parameter<std::vector<int64_t>>("network.localhost_ip");
+  const std::vector<uint8_t> ip_localhost_vec(ip_localhost_raw.begin(), ip_localhost_raw.end());
+  const uint32_t ip_localhost = PTCL_UdpPort_getIpFromArray(ip_localhost_vec.data());
 
-  const PTCL_Id navigator_id = 3U;
-  const uint16_t navigator_port = 4983U;
-  const PTCL_Id motion_planner_id = 4U;
-  const uint16_t motion_planner_port = 4984U;
-  const PTCL_Id protect_id = 5U;
-  const uint16_t protect_port = 4985U;
-  const PTCL_Id developer_ui_id = 9U;
-  const uint16_t developer_ui_port = 4989U;
-  const PTCL_Id autoware_id = 10U;
-  const uint16_t autoware_port = 4990U;
-  const PTCL_Id trajectory_receiver_id = 11U;
-  const uint16_t trajectory_receiver_port = 4991U;
+  const PTCL_Id navigator_id = declare_parameter<int>("network.navigator_id");
+  const uint16_t navigator_port = declare_parameter<int>("network.navigator_port");
+  const PTCL_Id motion_planner_id = declare_parameter<int>("network.motion_planner_id");
+  const uint16_t motion_planner_port = declare_parameter<int>("network.motion_planner_port");
+  const PTCL_Id protect_id = declare_parameter<int>("network.protect_id");
+  const uint16_t protect_port = declare_parameter<int>("network.protect_port");
+  const PTCL_Id developer_ui_id = declare_parameter<int>("network.developer_ui_id");
+  const uint16_t developer_ui_port = declare_parameter<int>("network.developer_ui_port");
+  const PTCL_Id autoware_id = declare_parameter<int>("network.autoware_id");
+  const uint16_t autoware_port = declare_parameter<int>("network.autoware_port");
+  const PTCL_Id trajectory_receiver_id = declare_parameter<int>("network.trajectory_receiver_id");
+  const uint16_t trajectory_receiver_port = declare_parameter<int>("network.trajectory_receiver_port");
 
   id_address_pairs_ = {
-      {navigator_id, ip_local_host, navigator_port},
-      {motion_planner_id, ip_local_host, motion_planner_port},
-      {protect_id, ip_local_host, protect_port},
-      {developer_ui_id, ip_local_host, developer_ui_port},
-      {autoware_id, ip_local_host, autoware_port},
-      {trajectory_receiver_id, ip_local_host, trajectory_receiver_port}};
+      {navigator_id, ip_localhost, navigator_port},
+      {motion_planner_id, ip_localhost, motion_planner_port},
+      {protect_id, ip_localhost, protect_port},
+      {developer_ui_id, ip_localhost, developer_ui_port},
+      {autoware_id, ip_localhost, autoware_port},
+      {trajectory_receiver_id, ip_localhost, trajectory_receiver_port}};
 
   destinations_car_state_ = {navigator_id, motion_planner_id, protect_id, developer_ui_id};
   destinations_route_ = {navigator_id};
@@ -156,9 +157,9 @@ void EmbotechProDriverConnector::setup_PTCL() {
 
   PTCL_setLogPrefix("EX");
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
-  setup_port(autoware_id, ip_local_host, autoware_port,
+  setup_port(autoware_id, ip_localhost, autoware_port,
              ptcl_context_, ptcl_udp_port_);
-  setup_port(trajectory_receiver_id, ip_local_host,
+  setup_port(trajectory_receiver_id, ip_localhost,
              trajectory_receiver_port, ptcl_context_receiver_,
              ptcl_udp_port_receiver_);
   const bool installSuccess = PTCL_CarTrajectory_installCallback(
@@ -485,11 +486,11 @@ PTCL_Polytope EmbotechProDriverConnector::to_PTCL_polytope(const Shape &shape,
 
 void EmbotechProDriverConnector::setup_port(
     const unsigned int source_id,
-    const uint32_t ip_local_host, const uint16_t source_port,
+    const uint32_t ip_localhost, const uint16_t source_port,
     PTCL_Context &context, PTCL_UdpPort &udp_port) {
-  const int32_t ptcl_timeout_ms = 1000;
+  constexpr int32_t ptcl_timeout_ms = 1000;
   const PTCL_PortInterface *port_interface = PTCL_UdpPort_init(
-      ip_local_host, source_port, id_address_pairs_.data(), id_address_pairs_.size(),
+      ip_localhost, source_port, id_address_pairs_.data(), id_address_pairs_.size(),
       ptcl_timeout_ms, source_id, &context, &udp_port);
 
   bool setup_success = (port_interface != NULL);

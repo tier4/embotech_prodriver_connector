@@ -12,35 +12,19 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/embotech_prodriver_connector_utils.cpp
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC
-  ${CMAKE_SOURCE_DIR}/../../embo_example/include
-  ${CMAKE_SOURCE_DIR}/../../ptcl/include
-)
+add_compile_options(-Wno-error=unused-variable -Wno-error=unused-parameter)  # suppress errors when building PTCL
+# Add PTCL. Expected at ../ptcl.
+if(NOT PTCL_PATH)
+    set(PTCL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../ptcl")
+endif()
+if(NOT EXISTS "${PTCL_PATH}")
+    message(FATAL_ERROR "Could not find ptcl at ${PTCL_PATH}")
+endif()
+if(NOT TARGET ptcl)
+    add_subdirectory("${PTCL_PATH}" ${CMAKE_CURRENT_BINARY_DIR}/ptcl)
+endif()
 
-target_link_directories(${PROJECT_NAME} PUBLIC
-  ${CMAKE_SOURCE_DIR}/../../../../install/embo_example/lib/
-)
-
-target_link_libraries(${PROJECT_NAME}
-  libembo_example.so 
-  libptcl.so 
-  libptclMutex.so 
-  libcobs.so 
-  libcrc32.so 
-  libcobs.so 
-  libptcl.so 
-  libptclLoopbackPort.so 
-  libptclUdpPort.so 
-  libcrc32.so 
-  libptclBindings.so 
-  libptclMutex.so 
-  libptclUtils.so 
-  libembo_example.so 
-  libptclFilePortUtils.so 
-  libptclSi.so
-)
-
-target_compile_options(${PROJECT_NAME} PRIVATE -Wno-old-style-cast) # RCLCPP_ERROR_THROTTLE() has built-in old-style casts.
+target_link_libraries(${PROJECT_NAME} ptcl ptclUdpPort ptclUtils)
 
 # Node executable
 rclcpp_components_register_node(${PROJECT_NAME}
@@ -48,7 +32,4 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE ${PROJECT_NAME}_exe
 )
 
-# ament_auto_package(INSTALL_TO_SHARE param launch)
-ament_auto_package(
-  INSTALL_TO_SHARE
-  )
+ament_auto_package(INSTALL_TO_SHARE param)

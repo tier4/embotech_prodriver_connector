@@ -6,14 +6,11 @@ autoware_package()
 
 # Component
 ament_auto_add_library(${PROJECT_NAME} SHARED
-  include/embotech_prodriver_connector/embotech_prodriver_connector.hpp
-  include/embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp
-  src/embotech_prodriver_connector.cpp
-  src/embotech_prodriver_connector_utils.cpp
+  DIRECTORY src
 )
 
 add_compile_options(-Wno-error=unused-variable -Wno-error=unused-parameter)  # suppress errors when building PTCL
-# Add PTCL. Expected at ../ptcl.
+# Add PTCL. Expected at ../ptcl or set as PTCL_PATH.
 if(NOT PTCL_PATH)
     set(PTCL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../ptcl")
 endif()

@@ -15,12 +15,15 @@
 #include "embotech_prodriver_connector/embotech_prodriver_connector_utils.hpp"
 
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
+#include "ptcl/subtypes/ptcl_scalar_types.h"
+#include "ptcl/utils/ptcl_time_utils.h"
 
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/utils.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -184,6 +187,21 @@ ObjectClassification getHighestProbClass(const std::vector<ObjectClassification>
     }
   }
   return highest_class;
+}
+
+rclcpp::Time toRosTime(const PTCL_Time & ptcl_time)
+{
+  uint32_t s;
+  uint32_t ns;
+  PTCL_Time_to_s_ns(ptcl_time, &s, &ns);
+  return rclcpp::Time(static_cast<int32_t>(s), ns);
+}
+
+PTCL_Time fromRosTime(const rclcpp::Time & ros_time)
+{
+  const auto seconds = static_cast<uint32_t>(ros_time.seconds());
+  const auto nanoseconds = static_cast<uint32_t>(ros_time.nanoseconds() - seconds * 1e9);
+  return PTCL_Time_from_s_ns(seconds, nanoseconds);
 }
 
 }  // namespace embotech_prodriver_connector

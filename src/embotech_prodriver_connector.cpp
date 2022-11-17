@@ -178,16 +178,15 @@ void EmbotechProDriverConnector::setup_PTCL() {
 
 void EmbotechProDriverConnector::on_kinematic_state(
     const Odometry::ConstSharedPtr msg) {
-  current_kinematics_ = msg;
-
-  if (!current_kinematics_ || !current_steer_ || !current_acceleration_) {
-    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000 /*ms*/,
-                         "waiting data...");
+  if (!current_steer_)
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000 /*ms*/, "waiting for steering message");
+  if (!current_acceleration_)
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000 /*ms*/, "waiting for acceleration message");
+  if (!current_steer_ || !current_acceleration_)
     return;
-  }
 
-  const auto PTCL_cat_state = to_PTCL_car_state();
-  send_to_PTCL(PTCL_cat_state);
+  const auto PTCL_car_state = to_PTCL_car_state(*msg, *current_steer_, *current_acceleration_);
+  send_to_PTCL(PTCL_car_state);
 }
 
 void EmbotechProDriverConnector::on_steering(
@@ -202,17 +201,12 @@ void EmbotechProDriverConnector::on_acceleration(
 
 void EmbotechProDriverConnector::on_dynamic_object(
     const PredictedObjects::ConstSharedPtr msg) {
-  current_objects_ = msg;
-
-  const auto ptcl_object = to_PTCL_perception_object(*current_objects_);
+  const auto ptcl_object = to_PTCL_perception_object(*msg);
   send_to_PTCL(ptcl_object);
 }
 
-void EmbotechProDriverConnector::on_goal(
-    const PoseStamped::ConstSharedPtr msg) {
-  current_goal_ = msg;
-
-  const auto PTCL_route = to_PTCL_route(*current_goal_);
+void EmbotechProDriverConnector::on_goal(const PoseStamped::ConstSharedPtr msg) {
+  const auto PTCL_route = to_PTCL_route(*msg);
   send_to_PTCL(PTCL_route);
 
   // publish an empty route with the received goal to Autoware
@@ -223,38 +217,38 @@ void EmbotechProDriverConnector::on_goal(
   pub_route_->publish(route);
 }
 
-PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state() {
-  const auto mgrs_pos = current_kinematics_->pose.pose.position;
+PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state(const Odometry & odometry, const SteeringReport & steering, const AccelWithCovarianceStamped & acceleration) {
+  const auto mgrs_pos = odometry.pose.pose.position;
 
   const auto ptcl_pos =
       convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
   const auto current_time_ms = get_clock()->now().nanoseconds() / 1000000U;
-  PTCL_CarState cat_state;
-  cat_state.header.measurementTime = current_time_ms;
-  cat_state.header.timeReference = current_time_ms;
-  cat_state.header.vehicleId = 1;
-  cat_state.pose.position.x = ptcl_pos.x;
-  cat_state.pose.position.y = ptcl_pos.y;
+  PTCL_CarState car_state;
+  car_state.header.measurementTime = current_time_ms;
+  car_state.header.timeReference = current_time_ms;
+  car_state.header.vehicleId = 1;
+  car_state.pose.position.x = ptcl_pos.x;
+  car_state.pose.position.y = ptcl_pos.y;
   const double yaw_pose =
-      tf2::getYaw(current_kinematics_->pose.pose.orientation);
-  cat_state.pose.heading = PTCL_toPTCLAngleWrapped(yaw_pose);
-  cat_state.angleRateYaw =
-      PTCL_toPTCLAngleRate(current_kinematics_->twist.twist.angular.z);
-  cat_state.velLon =
-      PTCL_toPTCLSpeed(current_kinematics_->twist.twist.linear.x);
-  cat_state.velLat = PTCL_toPTCLSpeed(
+      tf2::getYaw(odometry.pose.pose.orientation);
+  car_state.pose.heading = PTCL_toPTCLAngleWrapped(yaw_pose);
+  car_state.angleRateYaw =
+      PTCL_toPTCLAngleRate(odometry.twist.twist.angular.z);
+  car_state.velLon =
+      PTCL_toPTCLSpeed(odometry.twist.twist.linear.x);
+  car_state.velLat = PTCL_toPTCLSpeed(
       0.0); // TODO think later. Autoware does not support lateral velocity.
-  cat_state.accelLon =
-      PTCL_toPTCLAccel(current_acceleration_->accel.accel.linear.x);
-  cat_state.gear = PTCL_GEAR_SELECTOR_D;
-  cat_state.controllerMode.latControlActive = true;
-  cat_state.controllerMode.lonControlActive = true;
-  cat_state.angleSteeredWheels =
-      PTCL_toPTCLAngleWrapped(current_steer_->steering_tire_angle);
-  cat_state.numSemiTrailers = static_cast<uint8_t>(0);
+  car_state.accelLon =
+      PTCL_toPTCLAccel(acceleration.accel.accel.linear.x);
+  car_state.gear = PTCL_GEAR_SELECTOR_D;
+  car_state.controllerMode.latControlActive = true;
+  car_state.controllerMode.lonControlActive = true;
+  car_state.angleSteeredWheels =
+      PTCL_toPTCLAngleWrapped(steering.steering_tire_angle);
+  car_state.numSemiTrailers = static_cast<uint8_t>(0);
 
-  return cat_state;
+  return car_state;
 }
 
 PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(

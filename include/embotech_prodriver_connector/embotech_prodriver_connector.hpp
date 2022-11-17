@@ -117,7 +117,6 @@ private:
   SteeringReport::ConstSharedPtr current_steer_;
   AccelWithCovarianceStamped::ConstSharedPtr current_acceleration_;
   PredictedObjects::ConstSharedPtr current_objects_;
-  PoseStamped::ConstSharedPtr current_goal_;
 
   // autoware callbacks
   void on_kinematic_state(const Odometry::ConstSharedPtr msg);
@@ -141,8 +140,8 @@ private:
   // conversion: turn signal
   TurnIndicatorsCommand to_autoware_turn_indicator(const PTCL_CarTrajectory & car_trajectory);
 
-  // conversion: ego
-  PTCL_CarState to_PTCL_car_state();
+  // conversion: ego state
+  PTCL_CarState to_PTCL_car_state(const Odometry & odometry, const SteeringReport & steering, const AccelWithCovarianceStamped & acceleration);
   void send_to_PTCL(const PTCL_CarState & car_state);
 
   // conversion: perception

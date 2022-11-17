@@ -9,6 +9,7 @@
     <remap from="~/input/objects" to="/perception/object_recognition/objects"/>
     <remap from="~/input/goal" to="/planning/mission_planning/goal"/>
     <remap from="~/output/trajectory" to="/planning/scenario_planning/trajectory"/>
+    <remap from="~/output/control" to="/control/trajectory_follower/control_cmd"/>
     <remap from="~/output/route" to="/planning/mission_planning/route"/>
     <remap from="~/output/turn_indicators_cmd" to="/planning/turn_indicators_cmd"/>
     <remap from="~/output/hazard_lights_cmd" to="/planning/hazard_lights_cmd"/>

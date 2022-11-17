@@ -26,7 +26,7 @@
       # offset_x: 143693.65344
       # offset_y: 108022.3417698
     network:
-      localhost_ip: [127,0,0,1]
+      localhost_ip: [127, 0, 0, 1]
       navigator_id: 3
       navigator_port: 4983
       motion_planner_id: 4

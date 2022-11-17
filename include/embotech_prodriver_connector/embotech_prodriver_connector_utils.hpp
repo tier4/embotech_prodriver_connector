@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef EMBOTECH_PRODRIVER_CONNECTOR__EMBOTECH_PRODRIVER_CONNECTOR_UTILS_HPP_
+#define EMBOTECH_PRODRIVER_CONNECTOR__EMBOTECH_PRODRIVER_CONNECTOR_UTILS_HPP_
+
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
 #include "tier4_autoware_utils/tier4_autoware_utils.hpp"
+
+#include <vector>
 
 namespace embotech_prodriver_connector
 {
@@ -38,3 +43,5 @@ void calcObjectPolygon(const Shape & shape, const Pose & pose, Polygon2d * objec
 ObjectClassification getHighestProbClass(const std::vector<ObjectClassification> & classifications);
 
 }  // namespace embotech_prodriver_connector
+
+#endif  // EMBOTECH_PRODRIVER_CONNECTOR__EMBOTECH_PRODRIVER_CONNECTOR_UTILS_HPP_

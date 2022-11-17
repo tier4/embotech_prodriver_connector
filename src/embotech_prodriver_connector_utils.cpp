@@ -39,16 +39,19 @@ PTCL_ObjectType to_PTCL_object_type(const ObjectClassification & classification)
     return PTCL_ObjectType::PTCL_OBJECT_TYPE_TRUCK;
   }
   if (label == ObjectClassification::BUS) {
-    return PTCL_ObjectType::PTCL_OBJECT_TYPE_TRUCK;  // TODO: think later
+    return PTCL_ObjectType::PTCL_OBJECT_TYPE_TRUCK;  // TODO(Sugahara): think
+                                                     // later
   }
   if (label == ObjectClassification::TRAILER) {
-    return PTCL_ObjectType::PTCL_OBJECT_TYPE_TRUCK;  // TODO: think later
+    return PTCL_ObjectType::PTCL_OBJECT_TYPE_TRUCK;  // TODO(Sugahara): think
+                                                     // later
   }
   if (label == ObjectClassification::MOTORCYCLE) {
     return PTCL_ObjectType::PTCL_OBJECT_TYPE_MOTORCYCLE;
   }
   if (label == ObjectClassification::BICYCLE) {
-    return PTCL_ObjectType::PTCL_OBJECT_TYPE_MOTORCYCLE;  // TODO: think later
+    return PTCL_ObjectType::PTCL_OBJECT_TYPE_MOTORCYCLE;  // TODO(Sugahara):
+                                                          // think later
   }
   if (label == ObjectClassification::PEDESTRIAN) {
     return PTCL_ObjectType::PTCL_OBJECT_TYPE_PEDESTRIAN;

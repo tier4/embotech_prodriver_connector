@@ -104,7 +104,8 @@ private:
   PTCL_Context ptcl_context_receiver_;
   PTCL_UdpPort ptcl_udp_port_receiver_;
   PTCL_CarTrajectoryReceiverContext trajectory_receiver_context_;
-  std::vector<PTCL_UdpIdAddressPair> id_address_pairs_;
+  std::vector<PTCL_UdpIdAddressPair> sender_id_address_pairs_;
+  std::vector<PTCL_UdpIdAddressPair> receiver_id_address_pairs_;
   std::vector<PTCL_Id> destinations_car_state_;
   std::vector<PTCL_Id> destinations_route_;
   std::vector<PTCL_Id> destinations_perception_frame_;
@@ -128,7 +129,8 @@ private:
   // setup port
   void setup_port(
     const unsigned int source_id, const uint32_t ip_local_host, const uint16_t source_port,
-    PTCL_Context & context, PTCL_UdpPort & udp_port);
+    const std::vector<PTCL_UdpIdAddressPair> & id_address_pairs, PTCL_Context & context,
+    PTCL_UdpPort & udp_port);
   void setup_PTCL();
   void on_timer();
 

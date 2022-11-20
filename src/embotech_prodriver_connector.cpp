@@ -127,6 +127,10 @@ void EmbotechProDriverConnector::on_timer()
 
 void EmbotechProDriverConnector::setup_PTCL()
 {
+  const auto ip_prodriver_raw = declare_parameter<std::vector<int64_t>>("network.prodriver_ip");
+  const std::vector<uint8_t> ip_prodriver_vec(ip_prodriver_raw.begin(), ip_prodriver_raw.end());
+  const uint32_t ip_prodriver = PTCL_UdpPort_getIpFromArray(ip_prodriver_vec.data());
+
   const auto ip_localhost_raw = declare_parameter<std::vector<int64_t>>("network.localhost_ip");
   const std::vector<uint8_t> ip_localhost_vec(ip_localhost_raw.begin(), ip_localhost_raw.end());
   const uint32_t ip_localhost = PTCL_UdpPort_getIpFromArray(ip_localhost_vec.data());
@@ -145,13 +149,14 @@ void EmbotechProDriverConnector::setup_PTCL()
   const uint16_t trajectory_receiver_port =
     declare_parameter<int>("network.trajectory_receiver_port");
 
-  id_address_pairs_ = {
-    {navigator_id, ip_localhost, navigator_port},
-    {motion_planner_id, ip_localhost, motion_planner_port},
-    {protect_id, ip_localhost, protect_port},
-    {developer_ui_id, ip_localhost, developer_ui_port},
-    {autoware_id, ip_localhost, autoware_port},
-    {trajectory_receiver_id, ip_localhost, trajectory_receiver_port}};
+  sender_id_address_pairs_ = {
+    {navigator_id, ip_prodriver, navigator_port},
+    {motion_planner_id, ip_prodriver, motion_planner_port},
+    {protect_id, ip_prodriver, protect_port},
+    {developer_ui_id, ip_prodriver, developer_ui_port},
+    {autoware_id, ip_prodriver, autoware_port}};
+
+  receiver_id_address_pairs_ = {{trajectory_receiver_id, ip_localhost, trajectory_receiver_port}};
 
   destinations_car_state_ = {navigator_id, motion_planner_id, protect_id, developer_ui_id};
   destinations_route_ = {navigator_id};
@@ -159,10 +164,12 @@ void EmbotechProDriverConnector::setup_PTCL()
 
   PTCL_setLogPrefix("EX");
   PTCL_setLogThreshold(PTCL_getLogThresholdFromEnv());
-  setup_port(autoware_id, ip_localhost, autoware_port, ptcl_context_, ptcl_udp_port_);
   setup_port(
-    trajectory_receiver_id, ip_localhost, trajectory_receiver_port, ptcl_context_receiver_,
-    ptcl_udp_port_receiver_);
+    autoware_id, ip_prodriver, autoware_port, sender_id_address_pairs_, ptcl_context_,
+    ptcl_udp_port_);
+  setup_port(
+    trajectory_receiver_id, ip_localhost, trajectory_receiver_port, receiver_id_address_pairs_,
+    ptcl_context_receiver_, ptcl_udp_port_receiver_);
   const bool installSuccess = PTCL_CarTrajectory_installCallback(
     &ptcl_context_receiver_, car_trajectory_CB, &car_trajectory_data_, protect_id,
     &trajectory_receiver_context_);
@@ -484,13 +491,14 @@ PTCL_Polytope EmbotechProDriverConnector::to_PTCL_polytope(const Shape & shape, 
 }
 
 void EmbotechProDriverConnector::setup_port(
-  const unsigned int source_id, const uint32_t ip_localhost, const uint16_t source_port,
-  PTCL_Context & context, PTCL_UdpPort & udp_port)
+  const unsigned int source_id, const uint32_t ip, const uint16_t source_port,
+  const std::vector<PTCL_UdpIdAddressPair> & id_address_pairs, PTCL_Context & context,
+  PTCL_UdpPort & udp_port)
 {
   constexpr int32_t ptcl_timeout_ms = 1000;
   const PTCL_PortInterface * port_interface = PTCL_UdpPort_init(
-    ip_localhost, source_port, id_address_pairs_.data(), id_address_pairs_.size(), ptcl_timeout_ms,
-    source_id, &context, &udp_port);
+    ip, source_port, id_address_pairs.data(), id_address_pairs.size(), ptcl_timeout_ms, source_id,
+    &context, &udp_port);
 
   bool setup_success = (port_interface != NULL);
   if (setup_success) {

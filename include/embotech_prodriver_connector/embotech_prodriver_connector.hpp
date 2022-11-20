@@ -16,29 +16,29 @@
 #define EMBOTECH_PRODRIVER_CONNECTOR__EMBOTECH_PRODRIVER_CONNECTOR_HPP_
 
 // ROS
+#include "ptcl/ports/ptcl_port_udp_config.h"
+#include "rclcpp/rclcpp.hpp"
+#include "tier4_autoware_utils/geometry/geometry.hpp"
+
 #include "autoware_auto_planning_msgs/msg/detail/had_map_route__struct.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
 #include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
-#include "ptcl/ports/ptcl_port_udp_config.h"
-#include "rclcpp/rclcpp.hpp"
-
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 
-#include "tier4_autoware_utils/geometry/geometry.hpp"
-
 // Autoware
 #include "lanelet2_extension/projection/mgrs_projector.hpp"
+
 #include "autoware_auto_perception_msgs/msg/predicted_objects.hpp"
-#include "autoware_auto_planning_msgs/msg/trajectory.hpp"
-#include "autoware_auto_vehicle_msgs/msg/steering_report.hpp"
-#include "autoware_auto_vehicle_msgs/msg/velocity_report.hpp"
 #include "autoware_auto_planning_msgs/msg/had_map_route.hpp"
+#include "autoware_auto_planning_msgs/msg/trajectory.hpp"
 #include "autoware_auto_vehicle_msgs/msg/hazard_lights_command.hpp"
+#include "autoware_auto_vehicle_msgs/msg/steering_report.hpp"
 #include "autoware_auto_vehicle_msgs/msg/turn_indicators_command.hpp"
+#include "autoware_auto_vehicle_msgs/msg/velocity_report.hpp"
 
 // Pro-DRIVER
 #include "lanelet2_core/primitives/GPSPoint.h"
@@ -62,11 +62,11 @@ using autoware_auto_perception_msgs::msg::PredictedObjectKinematics;
 using autoware_auto_perception_msgs::msg::PredictedObjects;
 using autoware_auto_perception_msgs::msg::PredictedPath;
 using autoware_auto_perception_msgs::msg::Shape;
+using autoware_auto_planning_msgs::msg::HADMapRoute;
 using autoware_auto_planning_msgs::msg::Trajectory;
 using autoware_auto_planning_msgs::msg::TrajectoryPoint;
-using autoware_auto_planning_msgs::msg::HADMapRoute;
-using autoware_auto_vehicle_msgs::msg::SteeringReport;
 using autoware_auto_vehicle_msgs::msg::HazardLightsCommand;
+using autoware_auto_vehicle_msgs::msg::SteeringReport;
 using autoware_auto_vehicle_msgs::msg::TurnIndicatorsCommand;
 
 using geometry_msgs::msg::AccelWithCovarianceStamped;
@@ -104,7 +104,8 @@ private:
   PTCL_Context ptcl_context_receiver_;
   PTCL_UdpPort ptcl_udp_port_receiver_;
   PTCL_CarTrajectoryReceiverContext trajectory_receiver_context_;
-  std::vector<PTCL_UdpIdAddressPair> id_address_pairs_;
+  std::vector<PTCL_UdpIdAddressPair> sender_id_address_pairs_;
+  std::vector<PTCL_UdpIdAddressPair> receiver_id_address_pairs_;
   std::vector<PTCL_Id> destinations_car_state_;
   std::vector<PTCL_Id> destinations_route_;
   std::vector<PTCL_Id> destinations_perception_frame_;
@@ -117,7 +118,6 @@ private:
   SteeringReport::ConstSharedPtr current_steer_;
   AccelWithCovarianceStamped::ConstSharedPtr current_acceleration_;
   PredictedObjects::ConstSharedPtr current_objects_;
-  PoseStamped::ConstSharedPtr current_goal_;
 
   // autoware callbacks
   void on_kinematic_state(const Odometry::ConstSharedPtr msg);
@@ -128,8 +128,8 @@ private:
 
   // setup port
   void setup_port(
-    const unsigned int source_id,
-    const uint32_t ip_local_host, const uint16_t source_port, PTCL_Context & context,
+    const unsigned int source_id, const uint32_t ip_local_host, const uint16_t source_port,
+    const std::vector<PTCL_UdpIdAddressPair> & id_address_pairs, PTCL_Context & context,
     PTCL_UdpPort & udp_port);
   void setup_PTCL();
   void on_timer();
@@ -141,8 +141,10 @@ private:
   // conversion: turn signal
   TurnIndicatorsCommand to_autoware_turn_indicator(const PTCL_CarTrajectory & car_trajectory);
 
-  // conversion: ego
-  PTCL_CarState to_PTCL_car_state();
+  // conversion: ego state
+  PTCL_CarState to_PTCL_car_state(
+    const Odometry & odometry, const SteeringReport & steering,
+    const AccelWithCovarianceStamped & acceleration);
   void send_to_PTCL(const PTCL_CarState & car_state);
 
   // conversion: perception

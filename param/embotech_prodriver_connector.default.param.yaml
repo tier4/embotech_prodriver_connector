@@ -25,6 +25,12 @@
       # longitude: 137.83333262993906
       # offset_x: 143693.65344
       # offset_y: 108022.3417698
+      ### b-mobility
+      # mgrs_code: "54SUE"
+      # latitude: 35.73950885099765
+      # longitude: 139.46709326132685
+      # offset_x: 0.0
+      # offset_y: 0.0
     network:
       localhost_ip: [127, 0, 0, 1]
       prodriver_ip: [127, 0, 0, 1]

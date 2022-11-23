@@ -42,6 +42,9 @@ void calcObjectPolygon(const Shape & shape, const Pose & pose, Polygon2d * objec
 
 ObjectClassification getHighestProbClass(const std::vector<ObjectClassification> & classifications);
 
+rclcpp::Time toRosTime(const PTCL_Time & ptcl_time);
+PTCL_Time fromRosTime(const rclcpp::Time & ros_time);
+
 }  // namespace embotech_prodriver_connector
 
 #endif  // EMBOTECH_PRODRIVER_CONNECTOR__EMBOTECH_PRODRIVER_CONNECTOR_UTILS_HPP_

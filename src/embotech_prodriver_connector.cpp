@@ -18,9 +18,10 @@
 #include "lanelet2_io/Projection.h"
 #include "ptcl/ports/ptcl_port_udp_config.h"
 #include "ptcl/subtypes/ptcl_indicators.h"
-
-#include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
-#include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
+#include "ptcl/subtypes/ptcl_scalar_types.h"
+#include "ptcl/utils/ptcl_car_trajectory_utils.h"
+#include "ptcl/utils/ptcl_si_unit_conversion.h"
+#include "ptcl/utils/ptcl_time_utils.h"
 
 #include <lanelet2_projection/Mercator.h>
 #include <lanelet2_projection/UTM.h>
@@ -69,6 +70,7 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
   setup_PTCL();
 
   pub_trajectory_ = create_publisher<Trajectory>("~/output/trajectory", 1);
+  pub_control_ = create_publisher<AckermannControlCommand>("~/output/control", 1);
   pub_route_ = create_publisher<HADMapRoute>("~/output/route", QoS{1}.transient_local());
   pub_turn_signal_ = create_publisher<TurnIndicatorsCommand>("~/output/turn_indicators_cmd", 1);
   pub_hazard_signal_ = create_publisher<HazardLightsCommand>("~/output/hazard_lights_cmd", 1);
@@ -109,19 +111,39 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
 void EmbotechProDriverConnector::on_timer()
 {
   if (!car_trajectory_data_.msg_received) {
+    RCLCPP_ERROR_THROTTLE(
+      get_logger(), *get_clock(), 5000 /*ms*/, "embotech trajectory not received.");
     return;
   }
   const auto current_trajectory = to_autoware_trajectory(car_trajectory_data_.car_trajectory);
+  if (current_trajectory.points.empty()) {
+    RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 5000 /*ms*/, "embotech trajectory is empty.");
+    return;
+  }
+
   const auto turn_indicator_msg = to_autoware_turn_indicator(car_trajectory_data_.car_trajectory);
   const auto hazard_light_msg =
     to_autoware_hazard_light_command(car_trajectory_data_.car_trajectory);
 
-  if (!current_trajectory.points.empty()) {
-    pub_trajectory_->publish(current_trajectory);
-    pub_turn_signal_->publish(turn_indicator_msg);
-    pub_hazard_signal_->publish(hazard_light_msg);
-  } else {
-    RCLCPP_ERROR(get_logger(), "embotech trajectory is empty. not published.");
+  pub_trajectory_->publish(current_trajectory);
+  pub_turn_signal_->publish(turn_indicator_msg);
+  pub_hazard_signal_->publish(hazard_light_msg);
+
+  PTCL_CarTrajectoryElement current_element;
+  const auto current_time = get_clock()->now();
+  const auto current_time_ptcl = fromRosTime(current_time);
+  if (PTCL_CarTrajectory_getInterpolatedElement(
+        &(car_trajectory_data_.car_trajectory), current_time_ptcl, &current_element)) {
+    AckermannControlCommand cmd;
+    cmd.longitudinal.stamp = current_time;
+    cmd.lateral.stamp = current_time;
+
+    cmd.longitudinal.speed = PTCL_toSpeed(current_element.velLon);
+    cmd.longitudinal.acceleration = PTCL_toAccel(current_element.accelLon);
+
+    cmd.lateral.steering_tire_angle = PTCL_toAngleWrapped(current_element.angleSteeredWheels);
+    cmd.lateral.steering_tire_rotation_rate = PTCL_toAngleRate(current_element.angleRateYaw);
+    pub_control_->publish(cmd);
   }
 }
 
@@ -233,13 +255,12 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state(
   const AccelWithCovarianceStamped & acceleration)
 {
   const auto mgrs_pos = odometry.pose.pose.position;
-
   const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
-  const auto current_time_ms = get_clock()->now().nanoseconds() / 1000000U;
+  const auto current_time_ptcl = fromRosTime(odometry.header.stamp);
   PTCL_CarState car_state;
-  car_state.header.measurementTime = current_time_ms;
-  car_state.header.timeReference = current_time_ms;
+  car_state.header.measurementTime = current_time_ptcl;
+  car_state.header.timeReference = current_time_ptcl;
   car_state.header.vehicleId = 1;
   car_state.pose.position.x = ptcl_pos.x;
   car_state.pose.position.y = ptcl_pos.y;
@@ -263,8 +284,7 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
   const PredictedObjects & object)
 {
   PTCL_PerceptionFrame ptcl_frame;
-  const auto current_time_ms = get_clock()->now().nanoseconds() / 1000000U;
-  ptcl_frame.header.measurementTime = current_time_ms;
+  ptcl_frame.header.measurementTime = fromRosTime(get_clock()->now());
   ptcl_frame.header.oemId = 0;       // TODO(Sugahara): think later
   ptcl_frame.header.mapId = 0;       // TODO(Sugahara): think later
   ptcl_frame.header.mapCrc = 0;      // TODO(Sugahara): think later
@@ -295,7 +315,7 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     // for each predicted path point
     int16_t time_offset = 0;
     const auto dt_ms =
-      static_cast<int16_t>(rclcpp::Duration(predicted_path.time_step).nanoseconds() * 10e-7);
+      static_cast<int16_t>(rclcpp::Duration(predicted_path.time_step).nanoseconds() / 1e6);
     for (size_t j = 0; j < predicted_path.path.size(); ++j) {
       ptcl_object.instances[j].timeOffset = time_offset;
       ptcl_object.instances[j].shape = to_PTCL_polytope(obj.shape, predicted_path.path.at(j));
@@ -316,9 +336,7 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
   const PTCL_CarTrajectory & ptcl_car_trajectory)
 {
   Trajectory trajectory;
-  const float64_t time_reference_sec =
-    PTCL_toTime(ptcl_car_trajectory.header.timeReference);  // uint64_t -> double
-  trajectory.header.stamp = rclcpp::Time(time_reference_sec);
+  trajectory.header.stamp = toRosTime(ptcl_car_trajectory.header.timeReference);
   trajectory.header.frame_id = "map";
 
   constexpr size_t start_idx = 1;  // to ignore front point since it has 0 velocity
@@ -330,7 +348,7 @@ Trajectory EmbotechProDriverConnector::to_autoware_trajectory(
     TrajectoryPoint trajectory_point;
     const auto element_pos = convert_to_MGRS_Point(car_trajectory_element.pose.position);
     trajectory_point.time_from_start = rclcpp::Duration::from_nanoseconds(
-      PTCL_toTimeOffset(car_trajectory_element.timeOffset) * 10e6);
+      PTCL_toTimeOffset(car_trajectory_element.timeOffset) * 1e6);
     trajectory_point.pose.position.x = element_pos.x();
     trajectory_point.pose.position.y = element_pos.y();
     trajectory_point.pose.position.z = element_pos.z();
@@ -361,8 +379,7 @@ HazardLightsCommand EmbotechProDriverConnector::to_autoware_hazard_light_command
   const PTCL_CarTrajectory & ptcl_car_trajectory)
 {
   HazardLightsCommand cmd;
-  float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
-  cmd.stamp = rclcpp::Time(time_reference_sec);
+  cmd.stamp = toRosTime(ptcl_car_trajectory.header.timeReference);
   cmd.command = ptcl_car_trajectory.indicators == PTCL_INDICATORS_HAZARD
                   ? HazardLightsCommand::ENABLE
                   : HazardLightsCommand::NO_COMMAND;
@@ -373,8 +390,7 @@ TurnIndicatorsCommand EmbotechProDriverConnector::to_autoware_turn_indicator(
   const PTCL_CarTrajectory & ptcl_car_trajectory)
 {
   TurnIndicatorsCommand cmd;
-  float64_t time_reference_sec = PTCL_toTime(ptcl_car_trajectory.header.timeReference);
-  cmd.stamp = rclcpp::Time(time_reference_sec);
+  cmd.stamp = toRosTime(ptcl_car_trajectory.header.timeReference);
   switch (ptcl_car_trajectory.indicators) {
     case PTCL_INDICATORS_LEFT:
       cmd.command = TurnIndicatorsCommand::ENABLE_LEFT;

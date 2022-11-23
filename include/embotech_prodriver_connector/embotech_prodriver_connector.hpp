@@ -20,9 +20,6 @@
 #include "rclcpp/rclcpp.hpp"
 #include "tier4_autoware_utils/geometry/geometry.hpp"
 
-#include "autoware_auto_planning_msgs/msg/detail/had_map_route__struct.hpp"
-#include "autoware_auto_vehicle_msgs/msg/detail/hazard_lights_command__struct.hpp"
-#include "autoware_auto_vehicle_msgs/msg/detail/turn_indicators_command__struct.hpp"
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -32,6 +29,7 @@
 // Autoware
 #include "lanelet2_extension/projection/mgrs_projector.hpp"
 
+#include "autoware_auto_control_msgs/msg/ackermann_control_command.hpp"
 #include "autoware_auto_perception_msgs/msg/predicted_objects.hpp"
 #include "autoware_auto_planning_msgs/msg/had_map_route.hpp"
 #include "autoware_auto_planning_msgs/msg/trajectory.hpp"
@@ -55,7 +53,7 @@
 
 namespace embotech_prodriver_connector
 {
-
+using autoware_auto_control_msgs::msg::AckermannControlCommand;
 using autoware_auto_perception_msgs::msg::ObjectClassification;
 using autoware_auto_perception_msgs::msg::PredictedObject;
 using autoware_auto_perception_msgs::msg::PredictedObjectKinematics;
@@ -87,6 +85,7 @@ public:
 
 private:
   rclcpp::Publisher<Trajectory>::SharedPtr pub_trajectory_;
+  rclcpp::Publisher<AckermannControlCommand>::SharedPtr pub_control_;
   rclcpp::Publisher<HADMapRoute>::SharedPtr pub_route_;
   rclcpp::Publisher<TurnIndicatorsCommand>::SharedPtr pub_turn_signal_;
   rclcpp::Publisher<HazardLightsCommand>::SharedPtr pub_hazard_signal_;

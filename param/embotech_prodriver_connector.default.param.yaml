@@ -1,5 +1,6 @@
 /**:
   ros__parameters:
+    calculate_acceleration_from_twist: true # if true, the acceleration topic is not used and acceleration is calculated from the twist instead
     map_origin:
       ### virtual map
       mgrs_code: "54SUE"

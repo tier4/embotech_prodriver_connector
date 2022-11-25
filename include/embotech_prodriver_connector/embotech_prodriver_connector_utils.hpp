@@ -18,6 +18,7 @@
 #include "embotech_prodriver_connector/embotech_prodriver_connector.hpp"
 #include "tier4_autoware_utils/tier4_autoware_utils.hpp"
 
+#include <string>
 #include <vector>
 
 namespace embotech_prodriver_connector

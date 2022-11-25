@@ -26,6 +26,9 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
 // Autoware
 #include "lanelet2_extension/projection/mgrs_projector.hpp"
 
@@ -97,6 +100,11 @@ private:
 
   rclcpp::TimerBase::SharedPtr on_timer_;  //!< @brief timer for trajectory CB
 
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+
+  std::string map_frame_;
+
   // PTCL
   PTCL_Context ptcl_context_;
   PTCL_UdpPort ptcl_udp_port_;
@@ -151,6 +159,8 @@ private:
   void send_to_PTCL(const PTCL_PerceptionFrame & perception_frame);
 
   // conversion: goal
+  boost::optional<geometry_msgs::msg::PoseStamped> transform_pose(
+    const geometry_msgs::msg::PoseStamped & input_pose, const std::string & target_frame);
   PTCL_Route to_PTCL_route(const PoseStamped & goal);
   void send_to_PTCL(const PTCL_Route & route);
 

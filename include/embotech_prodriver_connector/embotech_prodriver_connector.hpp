@@ -26,6 +26,9 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
 // Autoware
 #include "lanelet2_extension/projection/mgrs_projector.hpp"
 #include "signal_processing/lowpass_filter_1d.hpp"
@@ -100,6 +103,7 @@ private:
 
   // parameters
   bool calculating_accel_;
+  std::string map_frame_;
 
   // PTCL
   PTCL_Context ptcl_context_;
@@ -118,6 +122,8 @@ private:
   lanelet::projection::UtmProjector utm_projector_{lanelet::Origin::defaultOrigin()};
 
   // cached data
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
   LowpassFilter1d accel_filter_{0.2};
   Odometry::ConstSharedPtr current_kinematics_;
   Odometry::ConstSharedPtr prev_kinematics_;
@@ -158,6 +164,8 @@ private:
   void send_to_PTCL(const PTCL_PerceptionFrame & perception_frame);
 
   // conversion: goal
+  boost::optional<geometry_msgs::msg::PoseStamped> transform_pose(
+    const geometry_msgs::msg::PoseStamped & input_pose, const std::string & target_frame);
   PTCL_Route to_PTCL_route(const PoseStamped & goal);
   void send_to_PTCL(const PTCL_Route & route);
 

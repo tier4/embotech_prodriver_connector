@@ -62,8 +62,10 @@ namespace embotech_prodriver_connector
 {
 
 EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions & options)
-: Node("embotech_prodriver_connector", options)
+: Node("embotech_prodriver_connector", options), tf_buffer_(get_clock()), tf_listener_(tf_buffer_)
 {
+  map_frame_ = declare_parameter("map_frame", "map");
+
   using rclcpp::QoS;
   using std::placeholders::_1;
 
@@ -261,7 +263,16 @@ void EmbotechProDriverConnector::on_dynamic_object(const PredictedObjects::Const
 
 void EmbotechProDriverConnector::on_goal(const PoseStamped::ConstSharedPtr msg)
 {
-  const auto PTCL_route = to_PTCL_route(*msg);
+  // transform goal pose
+  const auto opt_transformed_goal_pose = transform_pose(*msg, map_frame_);
+  if (!opt_transformed_goal_pose) {
+    RCLCPP_ERROR(
+      get_logger(), "Failed to get goal pose in map frame. Aborting frame transformation");
+    return;
+  }
+  const auto transformed_goal_pose = opt_transformed_goal_pose.get();
+
+  const auto PTCL_route = to_PTCL_route(transformed_goal_pose);
   send_to_PTCL(PTCL_route);
 
   // publish an empty route with the received goal to Autoware
@@ -545,6 +556,22 @@ void EmbotechProDriverConnector::setup_port(
     PTCL_UdpPort_destroy(&udp_port);
     RCLCPP_ERROR(this->get_logger(), "Init of context failed.\n");
   }
+}
+
+boost::optional<geometry_msgs::msg::PoseStamped> EmbotechProDriverConnector::transform_pose(
+  const geometry_msgs::msg::PoseStamped & input_pose, const std::string & target_frame)
+{
+  try {
+    geometry_msgs::msg::PoseStamped output_pose;
+    const auto transform =
+      tf_buffer_.lookupTransform(target_frame, input_pose.header.frame_id, tf2::TimePointZero);
+    tf2::doTransform(input_pose, output_pose, transform);
+    return output_pose;
+  } catch (tf2::TransformException & ex) {
+    RCLCPP_WARN(get_logger(), "%s", ex.what());
+  }
+
+  return {};
 }
 
 }  // namespace embotech_prodriver_connector

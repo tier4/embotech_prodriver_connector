@@ -18,6 +18,7 @@
 #include "lanelet2_io/Projection.h"
 #include "ptcl/ports/ptcl_port_udp_config.h"
 #include "ptcl/subtypes/ptcl_indicators.h"
+#include "ptcl/subtypes/ptcl_perception_object.h"
 #include "ptcl/subtypes/ptcl_scalar_types.h"
 #include "ptcl/utils/ptcl_car_trajectory_utils.h"
 #include "ptcl/utils/ptcl_si_unit_conversion.h"
@@ -268,7 +269,7 @@ PTCL_CarState EmbotechProDriverConnector::to_PTCL_car_state(
   const auto mgrs_pos = odometry.pose.pose.position;
   const auto ptcl_pos = convert_to_PTCL_Point({mgrs_pos.x, mgrs_pos.y, mgrs_pos.z});
 
-  const auto current_time_ptcl = fromRosTime(odometry.header.stamp);
+  const auto current_time_ptcl = fromRosTime(get_clock()->now());
   PTCL_CarState car_state;
   car_state.header.measurementTime = current_time_ptcl;
   car_state.header.timeReference = current_time_ptcl;
@@ -301,14 +302,15 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
   ptcl_frame.header.mapCrc = 0;      // TODO(Sugahara): think later
   ptcl_frame.header.vehicleId = 1U;  // TODO(Sugahara): think later
 
-  if (object.objects.size() >= PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX) {
-    throw std::runtime_error(
-      "perception object num is greater than maximum "
-      "threshold.");  // TODO(Maxime): remove ?
+  if (object.objects.size() > PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX) {
+    RCLCPP_WARN(
+      get_logger(), "Too many detected objects (%lu). Only using %d.", object.objects.size(),
+      PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX);
   }
-  ptcl_frame.numObjects = object.objects.size();
+  ptcl_frame.numObjects =
+    std::min(object.objects.size(), static_cast<size_t>(PTCL_PERCEPTION_FRAME_NUM_OBJECTS_MAX));
   // for each predicted object
-  for (size_t i = 0; i < object.objects.size(); ++i) {
+  for (size_t i = 0; i < ptcl_frame.numObjects; ++i) {
     const auto & obj = object.objects.at(i);
     auto & ptcl_object = ptcl_frame.objects[i];
     ptcl_object.id = i;  // TODO(Sugahara): object ID used in the Autoware has 128-bit uuid.
@@ -317,12 +319,14 @@ PTCL_PerceptionFrame EmbotechProDriverConnector::to_PTCL_perception_object(
     ptcl_object.confidenceType = static_cast<uint8_t>(255 * (1.0f - classification.probability));
     ptcl_object.properties = 0;  // immobile(1), yielding(2), or ego-vehicle(4).
     const auto predicted_path = get_highest_prob_path(obj.kinematics);
-    ptcl_object.numInstances = static_cast<int8_t>(predicted_path.path.size());
-    if (ptcl_object.numInstances >= PTCL_PERCEPTION_OBJECT_NUM_INSTANCES_MAX) {
-      throw std::runtime_error(
-        "predicted_paths size is greater than maximum "
-        "threshold.");  // TODO(Sugahara)
+    if (predicted_path.path.size() > PTCL_PERCEPTION_OBJECT_NUM_INSTANCES_MAX) {
+      RCLCPP_WARN(
+        get_logger(), "Object %lu: too many predicted points. Reducing from %lu to %d.", i,
+        predicted_path.path.size(), PTCL_PERCEPTION_OBJECT_NUM_INSTANCES_MAX);
     }
+    ptcl_object.numInstances = std::min(
+      static_cast<int8_t>(predicted_path.path.size()),
+      static_cast<int8_t>(PTCL_PERCEPTION_OBJECT_NUM_INSTANCES_MAX));
     // for each predicted path point
     int16_t time_offset = 0;
     const auto dt_ms =
@@ -507,13 +511,17 @@ PTCL_Polytope EmbotechProDriverConnector::to_PTCL_polytope(const Shape & shape, 
   calcObjectPolygon(shape, pose, &polygon);
 
   PTCL_Polytope ptcl_polygon;
-  ptcl_polygon.numVertices = polygon.outer().size();
-  for (size_t i = 0; i < polygon.outer().size(); ++i) {
-    const auto & p = polygon.outer().at(i);
+  const auto size = std::min(
+    polygon.outer().size(),
+    static_cast<size_t>(PTCL_PERCEPTION_FRAME_NUM_FIELD_OF_REGARD_ELEMENTS_MAX));
+  ptcl_polygon.numVertices = size;
+  for (size_t i = 0; i + 1 < size; ++i) {
+    const auto & p = polygon.outer()[i];
     const auto p_ptcl = convert_to_PTCL_Point({p.x(), p.y(), 0.0});
     ptcl_polygon.vertices[i].x = p_ptcl.x;
     ptcl_polygon.vertices[i].y = p_ptcl.y;
   }
+  ptcl_polygon.vertices[size - 1] = ptcl_polygon.vertices[0];
   return ptcl_polygon;
 }
 

@@ -104,6 +104,7 @@ private:
   // parameters
   bool calculating_accel_;
   std::string map_frame_;
+  rclcpp::Duration control_delay_time_ = rclcpp::Duration(0, 0);
 
   // PTCL
   PTCL_Context ptcl_context_;

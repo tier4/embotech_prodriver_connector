@@ -96,6 +96,8 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
     std::bind(&EmbotechProDriverConnector::on_timer, this));
 
   calculating_accel_ = declare_parameter<bool>("calculate_acceleration_from_twist");
+  const auto control_delay_time_ms = declare_parameter<int>("control_time_delay");
+  control_delay_time_ = std::chrono::milliseconds(control_delay_time_ms);
 
   // origin of lat/lon coordinates in PTCL are map
   lanelet::GPSPoint origin_prodriver_latlon;
@@ -136,9 +138,10 @@ void EmbotechProDriverConnector::on_timer()
 
   PTCL_CarTrajectoryElement current_element;
   const auto current_time = get_clock()->now();
-  const auto current_time_ptcl = fromRosTime(current_time);
+  const auto delayed_time = current_time + control_delay_time_;
+  const auto delayed_time_ptcl = fromRosTime(delayed_time);
   if (PTCL_CarTrajectory_getInterpolatedElement(
-        &(car_trajectory_data_.car_trajectory), current_time_ptcl, &current_element)) {
+        &(car_trajectory_data_.car_trajectory), delayed_time_ptcl, &current_element)) {
     AckermannControlCommand cmd;
     cmd.longitudinal.stamp = current_time;
     cmd.lateral.stamp = current_time;
@@ -149,6 +152,8 @@ void EmbotechProDriverConnector::on_timer()
     cmd.lateral.steering_tire_angle = PTCL_toAngleWrapped(current_element.angleSteeredWheels);
     cmd.lateral.steering_tire_rotation_rate = PTCL_toAngleRate(current_element.angleRateYaw);
     pub_control_->publish(cmd);
+  } else {
+    RCLCPP_ERROR(get_logger(), "Failed to find control command in the PRODRIVER trajectory");
   }
 }
 

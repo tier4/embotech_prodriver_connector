@@ -31,6 +31,7 @@
 
 // Autoware
 #include "lanelet2_extension/projection/mgrs_projector.hpp"
+#include "signal_processing/lowpass_filter_1d.hpp"
 
 #include "autoware_auto_control_msgs/msg/ackermann_control_command.hpp"
 #include "autoware_auto_perception_msgs/msg/predicted_objects.hpp"
@@ -100,9 +101,8 @@ private:
 
   rclcpp::TimerBase::SharedPtr on_timer_;  //!< @brief timer for trajectory CB
 
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener tf_listener_;
-
+  // parameters
+  bool calculating_accel_;
   std::string map_frame_;
 
   // PTCL
@@ -121,7 +121,12 @@ private:
   lanelet::projection::MGRSProjector mgrs_projector_;
   lanelet::projection::UtmProjector utm_projector_{lanelet::Origin::defaultOrigin()};
 
+  // cached data
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+  LowpassFilter1d accel_filter_{0.2};
   Odometry::ConstSharedPtr current_kinematics_;
+  Odometry::ConstSharedPtr prev_kinematics_;
   SteeringReport::ConstSharedPtr current_steer_;
   AccelWithCovarianceStamped::ConstSharedPtr current_acceleration_;
   PredictedObjects::ConstSharedPtr current_objects_;

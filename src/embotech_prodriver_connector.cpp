@@ -94,6 +94,8 @@ EmbotechProDriverConnector::EmbotechProDriverConnector(const rclcpp::NodeOptions
     this, get_clock(), std::chrono::milliseconds(timer_sampling_time_ms),
     std::bind(&EmbotechProDriverConnector::on_timer, this));
 
+  calculating_accel_ = declare_parameter<bool>("calculate_acceleration_from_twist");
+
   // origin of lat/lon coordinates in PTCL are map
   lanelet::GPSPoint origin_prodriver_latlon;
   const auto mgrs_code = declare_parameter<std::string>("map_origin.mgrs_code");
@@ -211,6 +213,26 @@ void EmbotechProDriverConnector::setup_PTCL()
 
 void EmbotechProDriverConnector::on_kinematic_state(const Odometry::ConstSharedPtr msg)
 {
+  if (calculating_accel_) {
+    prev_kinematics_ = current_kinematics_;
+    current_kinematics_ = msg;
+    if (prev_kinematics_ && current_kinematics_) {
+      const auto dv =
+        current_kinematics_->twist.twist.linear.x - prev_kinematics_->twist.twist.linear.x;
+      const auto dt = std::max(
+        (rclcpp::Time(current_kinematics_->header.stamp) -
+         rclcpp::Time(prev_kinematics_->header.stamp))
+          .seconds(),
+        1e-03);
+      const auto accel = dv / dt;
+      const auto current_acc = accel_filter_.filter(accel);
+      auto * accel_msg = new AccelWithCovarianceStamped();
+      accel_msg->accel.accel.linear.x = current_acc;
+      current_acceleration_.reset(accel_msg);
+    }
+  }
+
+  const auto missing_accel = !calculating_accel_ && !current_acceleration_;
   if (!current_steer_)
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000 /*ms*/, "waiting for steering message");
   if (!current_acceleration_)
